@@ -1,5 +1,6 @@
 import { MistakeChart } from "@/components/MistakeChart";
-import { api, currency } from "@/lib/api";
+import { PerformanceCharts } from "@/components/PerformanceCharts";
+import { api, currency, JournalEntry } from "@/lib/api";
 import { authHeaders } from "@/lib/server-auth";
 
 type Summary = {
@@ -18,6 +19,7 @@ type Summary = {
 
 export default async function PerformancePage() {
   const summary = await api<Summary>("/performance/summary", { headers: await authHeaders() });
+  const entries = await api<JournalEntry[]>("/journal", { headers: await authHeaders() });
   const mistakes = summary.most_common_mistake_tags;
 
   return (
@@ -36,6 +38,7 @@ export default async function PerformancePage() {
         <Metric label="Worst trade" value={currency(summary.worst_trade)} />
         <Metric label="Breakeven" value={String(summary.breakeven_trades)} />
       </section>
+      <PerformanceCharts entries={entries} />
       <section className="rounded-md border border-border bg-panel p-4">
         <h2 className="mb-4 font-semibold">Mistake Frequency</h2>
         {mistakes.length ? (

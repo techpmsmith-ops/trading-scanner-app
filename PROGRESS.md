@@ -1,5 +1,249 @@
 # Progress Handoff
 
+## Latest Hosted Deployment Handoff - 2026-05-16
+
+We started the first real hosted deployment flow using:
+
+- Database: Neon PostgreSQL
+- Backend: Render
+- Frontend: Vercel
+
+The user provided:
+
+```text
+Old backend URL checked earlier: https://trading-scanner-backend.onrender.com/
+Active Render backend URL: https://trading-scanner-app-g1d7.onrender.com/
+Frontend URL provided: https://vercel.com/techpmsmith-8934s-projects/trading-scanner-app
+Public frontend URL: https://trading-scanner-app.vercel.app/
+Admin email originally discussed: techpsmith@gmail.com
+Correct admin email: techpmsmith@gmail.com
+```
+
+Important security note: the user pasted an admin password into chat. Treat that password as exposed. Rotate it before production use and do not store it in repo docs or chat.
+
+### Hosted Backend Check
+
+Initial network check against the old Render backend showed that the domain was reachable, but it was not serving this Stage 1 MVP backend.
+
+Observed:
+
+```text
+GET https://trading-scanner-backend.onrender.com/
+=> {"status":"Trading Scanner API Running","version":"1.0.0"}
+
+GET https://trading-scanner-backend.onrender.com/health
+=> 404 Not Found
+```
+
+The hosted OpenAPI document exposed routes like:
+
+```text
+/trade
+/bot/toggle
+/account
+/market/{symbol}
+/strategies
+/backtest/{symbol}
+```
+
+Those are not the Stage 1 scanner/journal MVP routes. The expected MVP backend should expose:
+
+```text
+/health
+/auth/login
+/scan/latest
+/scan/status
+/scan/runs
+/journal
+/performance/summary
+```
+
+Update on 2026-05-17: a corrected Render service deployed successfully at:
+
+```text
+https://trading-scanner-app-g1d7.onrender.com/
+```
+
+Health check passed:
+
+```text
+GET https://trading-scanner-app-g1d7.onrender.com/health
+=> {"status":"ok","service":"trading-scanner-api"}
+```
+
+Update after Vercel/Render redeploy:
+
+```text
+GET https://trading-scanner-app-g1d7.onrender.com/health
+=> 200
+
+GET https://trading-scanner-app-g1d7.onrender.com/scan/latest without token
+=> 401
+
+GET https://trading-scanner-app.vercel.app/
+=> 200
+```
+
+Remaining hosted smoke-test steps require the rotated private admin password and should be run locally by the user, not pasted into chat.
+
+### Ticker Detail Production Error
+
+After login and scan, clicking a ticker showed a Vercel production Server Components render error. Local inspection found the dynamic route was using synchronous `params.symbol` while Next.js 16 expects dynamic route `params` to be awaited. The route was patched:
+
+```text
+frontend/app/scanner/[symbol]/page.tsx
+```
+
+Changes:
+
+- `params` is now typed as `Promise<{ symbol: string }>` and awaited.
+- `/data/{symbol}` fetch failures are handled gracefully.
+- If price history is unavailable, the ticker detail page shows a caution message instead of crashing.
+
+Local frontend build passed after the patch:
+
+```text
+npm run build
+=> passed
+```
+
+Next step: commit/push this frontend fix and redeploy Vercel.
+
+### Chart Enhancements Added Locally
+
+The frontend now includes additional visual representations:
+
+- Scanner page:
+  - Top 10 score bar chart
+  - Setup mix donut chart
+- Ticker detail page:
+  - Score breakdown bar chart
+  - Existing price chart remains, with a graceful fallback if price history is unavailable
+- Performance page:
+  - Equity curve from closed journal trades with P&L
+  - Trade outcome bar chart
+  - Existing mistake frequency chart remains
+
+New files:
+
+```text
+frontend/components/ScannerCharts.tsx
+frontend/components/TickerScoreChart.tsx
+frontend/components/PerformanceCharts.tsx
+```
+
+Updated files:
+
+```text
+frontend/app/scanner/page.tsx
+frontend/app/scanner/[symbol]/page.tsx
+frontend/app/performance/page.tsx
+frontend/lib/api.ts
+```
+
+Local validation:
+
+```text
+npm run build
+=> passed
+```
+
+These chart changes need to be committed/pushed to GitHub before Vercel can deploy them.
+
+### Render Fix Needed
+
+In Render, open `trading-scanner-backend` and verify:
+
+```text
+Root Directory: backend
+Build Command: pip install -r requirements.txt
+Start Command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Also set this Render environment variable before redeploying:
+
+```text
+PYTHON_VERSION=3.12.13
+```
+
+Why: the first Render build on 2026-05-17 used Render's default Python `3.14.3`. `pandas==2.2.2` did not install from a ready wheel there and started a long source build during `Preparing metadata (pyproject.toml)`. The app was locally validated on Python `3.12.13`, so Render should be pinned to that version.
+
+The repo now includes `.python-version` files at both the repo root and `backend/`, but the Render environment variable is the quickest explicit fix.
+
+Also confirm Render is connected to the correct GitHub repo and branch containing this MVP code.
+
+After redeploy, this must pass:
+
+```text
+GET https://trading-scanner-backend.onrender.com/health
+```
+
+Expected:
+
+```json
+{"status":"ok","service":"trading-scanner-api"}
+```
+
+Then run in Render Shell:
+
+```bash
+alembic upgrade head
+python -m app.cli create-admin --email techpmsmith@gmail.com --password "NEW-PRIVATE-PASSWORD"
+```
+
+Use a new private password because the previous one was exposed in chat.
+
+### Vercel Fix Needed
+
+The public Vercel frontend URL is:
+
+```text
+https://trading-scanner-app.vercel.app/
+```
+
+Update Render:
+
+```text
+ALLOWED_ORIGINS=https://trading-scanner-app.vercel.app
+```
+
+Then redeploy the Render backend.
+
+### Next Resume Steps
+
+1. Update Render `ALLOWED_ORIGINS` to `https://trading-scanner-app.vercel.app`.
+2. Confirm Render env vars are production-safe:
+
+```text
+APP_ENV=production
+DEBUG=false
+DATABASE_URL=<Neon URL entered only in Render>
+AUTO_CREATE_TABLES=false
+MARKET_DATA_PROVIDER=yfinance
+SCAN_DEFAULT_LOOKBACK_DAYS=300
+MIN_AVG_VOLUME=500000
+MAX_ATR_PERCENT=8
+YFINANCE_CACHE_DIR=./.yf_cache
+JWT_SECRET_KEY=<long secret entered only in Render>
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=720
+ALLOWED_ORIGINS=<public Vercel URL>
+```
+
+5. Run hosted smoke test:
+
+```powershell
+cd "C:\Users\gwatk\OneDrive\Documents\Develop trading App\trading-scanner-app\scripts"
+python deployment_smoke_test.py `
+  --backend-url "https://trading-scanner-app-g1d7.onrender.com" `
+  --frontend-url "https://trading-scanner-app.vercel.app" `
+  --email "techpmsmith@gmail.com" `
+  --password "NEW-PRIVATE-PASSWORD"
+```
+
+6. Run one hosted production scan from the UI.
+7. Confirm scan history, scan status, scanner results, journal create/edit/close, and performance summary.
+
 ## Current State
 
 The Stage 1 AI Trading Scanner MVP has been scaffolded and validated at local MVP build level.

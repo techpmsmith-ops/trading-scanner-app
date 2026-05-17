@@ -72,11 +72,15 @@ export type JournalEntry = {
   pnl_amount: number | null;
   pnl_percent: number | null;
   result: string | null;
+  entry_date: string | null;
+  exit_date: string | null;
   notes: string | null;
   emotions: string | null;
   mistake_tags: string[] | null;
   lesson_learned: string | null;
   linked_scan_result_id: number | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {

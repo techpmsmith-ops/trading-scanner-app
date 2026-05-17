@@ -3,6 +3,7 @@ import { AddToJournalButton } from "@/components/AddToJournalButton";
 import { Disclaimer } from "@/components/Disclaimer";
 import { PriceChart } from "@/components/PriceChart";
 import { StatusPill } from "@/components/StatusPill";
+import { TickerScoreChart } from "@/components/TickerScoreChart";
 import { api, currency, number, PriceBar, ScanRun } from "@/lib/api";
 import { authHeaders } from "@/lib/server-auth";
 
@@ -18,11 +19,11 @@ export default async function TickerDetail({ params }: { params: Promise<{ symbo
   const result = latest.results.find((item) => item.symbol === symbol.toUpperCase());
   if (!result) notFound();
   let bars: PriceBar[] = [];
-try {
-  bars = await api<PriceBar[]>(`/data/${result.symbol}`, { headers });
-} catch {
-  bars = [];
-}
+  try {
+    bars = await api<PriceBar[]>(`/data/${result.symbol}`, { headers });
+  } catch {
+    bars = [];
+  }
 
   return (
     <div className="space-y-6">
@@ -35,14 +36,15 @@ try {
         <AddToJournalButton result={result} />
       </div>
       {bars.length ? (
-  <PriceChart bars={bars} />
-) : (
-  <div className="rounded-md border border-caution/40 bg-caution/10 px-4 py-3 text-sm text-[#ffd88a]">
-    Price history is unavailable for this ticker right now. The scanner result below is still available for review.
-  </div>
-)}
+        <PriceChart bars={bars} />
+      ) : (
+        <div className="rounded-md border border-caution/40 bg-caution/10 px-4 py-3 text-sm text-[#ffd88a]">
+          Price history is unavailable for this ticker right now. The scanner result below is still available for review.
+        </div>
+      )}
       <section className="grid gap-4 lg:grid-cols-3">
         <Panel title="Score Breakdown">
+          <TickerScoreChart result={result} />
           <Score label="Trend" value={result.score_trend} max={30} />
           <Score label="Momentum" value={result.score_momentum} max={20} />
           <Score label="Volume" value={result.score_volume} max={15} />
