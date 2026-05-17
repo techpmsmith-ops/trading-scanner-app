@@ -1,7 +1,11 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import { PriceBar } from "@/lib/api";
 
 export function PriceChart({ bars }: { bars: PriceBar[] }) {
-  const data = bars.slice(-120);
+  const [period, setPeriod] = useState<PeriodKey>("3M");
+  const data = useMemo(() => filterBars(bars, period), [bars, period]);
   if (data.length < 2) {
     return (
       <div className="rounded-md border border-border bg-panel p-4 text-sm text-muted">
@@ -31,11 +35,27 @@ export function PriceChart({ bars }: { bars: PriceBar[] }) {
 
   return (
     <div className="rounded-md border border-border bg-panel p-4">
-      <div className="mb-3 flex items-center justify-between text-sm">
-        <span className="text-muted">Last {data.length} daily closes</span>
+      <div className="mb-3 flex flex-col gap-3 text-sm md:flex-row md:items-center md:justify-between">
+        <span className="text-muted">{PERIODS.find((item) => item.key === period)?.label} daily closes</span>
         <span className={last.close >= first.close ? "text-positive" : "text-danger"}>
           ${first.close.toFixed(2)} to ${last.close.toFixed(2)}
         </span>
+      </div>
+      <div className="mb-4 flex flex-wrap gap-2">
+        {PERIODS.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setPeriod(item.key)}
+            className={`rounded-md border px-3 py-1 text-xs font-semibold transition ${
+              period === item.key
+                ? "border-positive bg-positive text-[#07130d]"
+                : "border-border bg-panelSoft text-muted hover:text-ink"
+            }`}
+          >
+            {item.shortLabel}
+          </button>
+        ))}
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Price history line chart" className="h-72 w-full">
         <rect x="0" y="0" width={width} height={height} fill="#111927" />
@@ -56,4 +76,33 @@ export function PriceChart({ bars }: { bars: PriceBar[] }) {
       </svg>
     </div>
   );
+}
+
+type PeriodKey = "1M" | "3M" | "YTD" | "1Y" | "ALL";
+
+const PERIODS: { key: PeriodKey; shortLabel: string; label: string }[] = [
+  { key: "1M", shortLabel: "1M", label: "1 month" },
+  { key: "3M", shortLabel: "3M", label: "quarter" },
+  { key: "YTD", shortLabel: "YTD", label: "year to date" },
+  { key: "1Y", shortLabel: "1Y", label: "1 year" },
+  { key: "ALL", shortLabel: "All", label: "all available" }
+];
+
+function filterBars(bars: PriceBar[], period: PeriodKey) {
+  const sorted = bars.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  if (period === "ALL") return sorted;
+  if (!sorted.length) return [];
+
+  const lastDate = new Date(sorted[sorted.length - 1].date);
+  let startDate: Date;
+  if (period === "YTD") {
+    startDate = new Date(lastDate.getFullYear(), 0, 1);
+  } else {
+    const days = period === "1M" ? 31 : period === "3M" ? 93 : 366;
+    startDate = new Date(lastDate);
+    startDate.setDate(startDate.getDate() - days);
+  }
+
+  const filtered = sorted.filter((bar) => new Date(bar.date) >= startDate);
+  return filtered.length >= 2 ? filtered : sorted.slice(-Math.min(sorted.length, 2));
 }
