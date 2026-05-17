@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #0c1017;
+  color: #edf2f7;
+}
+
+input,
+select,
+textarea {
+  background: #111823;
+  color: #edf2f7;
+  border: 1px solid #2d3747;
+  border-radius: 6px;
+}
+
+button {
+  border-radius: 6px;
+}

@@ -1,0 +1,478 @@
+# AI Trading Scanner MVP
+
+Stage 1 MVP for an AI-assisted trading scanner. The app scans a configurable stock/ETF universe with daily candles, calculates transparent technical indicators, scores potential setups, shows ranked watchlist candidates, and supports trade journaling plus basic performance review.
+
+This is a decision-support tool. It does not place trades.
+
+## What It Does
+
+- Fetches end-of-day OHLCV data with `yfinance`
+- Stores tickers, price bars, scan runs, scan results, and journal entries locally
+- Calculates EMA/SMA trend, RSI, MACD, ATR, volume, and market-structure indicators
+- Classifies Stage 1 setup types with deterministic rules
+- Scores each ticker from 0 to 100 with visible score components
+- Estimates entry zone, stop, targets, and risk/reward with simple rules
+- Provides a dashboard, scanner table, ticker detail page, journal, and performance page
+- Handles per-ticker scanner failures without crashing the whole run
+
+## What It Does Not Do
+
+- Broker execution or live trading
+- Autonomous trading
+- Options, crypto, futures, or forex strategies
+- Social sentiment analysis
+- AI-generated trade calls
+- Real-time or high-frequency scanning
+
+## Project Structure
+
+```text
+trading-scanner-app/
+  backend/
+    app/
+      main.py
+      database.py
+      models.py
+      schemas.py
+      api/
+      services/
+      tests/
+    requirements.txt
+    .env.example
+  frontend/
+    app/
+    components/
+    lib/
+    package.json
+    .env.example
+```
+
+## Backend Setup
+
+```bash
+cd trading-scanner-app/backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
+alembic upgrade head
+python -m app.cli create-admin --email you@example.com --password "choose-a-strong-password"
+uvicorn app.main:app --reload
+```
+
+The API runs at `http://localhost:8000`.
+
+Health check:
+
+```bash
+curl http://localhost:8000/health
+```
+
+## Frontend Setup
+
+```bash
+cd trading-scanner-app/frontend
+npm install
+copy .env.example .env.local
+npm run dev
+```
+
+The UI runs at `http://localhost:3000`.
+
+## Run Tests
+
+```bash
+cd trading-scanner-app/backend
+pytest
+```
+
+## Database Migrations
+
+Local development uses SQLite by default:
+
+```text
+DATABASE_URL=sqlite:///./trading_scanner.db
+AUTO_CREATE_TABLES=true
+```
+
+Production should use PostgreSQL:
+
+```text
+DATABASE_URL=postgresql://user:password@host:5432/trading_scanner
+AUTO_CREATE_TABLES=false
+```
+
+Apply migrations:
+
+```bash
+cd trading-scanner-app/backend
+alembic upgrade head
+```
+
+Create a future migration after model changes:
+
+```bash
+alembic revision --autogenerate -m "describe change"
+alembic upgrade head
+```
+
+Create the first private admin user:
+
+```bash
+python -m app.cli create-admin --email you@example.com --password "choose-a-strong-password"
+```
+
+## Configure The Ticker Universe
+
+The default universe is seeded on backend startup:
+
+```text
+SPY, QQQ, IWM, DIA, AAPL, MSFT, NVDA, AMZN, META, GOOGL, TSLA, AMD, NFLX, JPM, BAC, XOM, CVX, UNH, COST, AVGO, SMCI, PLTR
+```
+
+You can edit the universe through the ticker API:
+
+```bash
+curl -X POST http://localhost:8000/tickers ^
+  -H "Content-Type: application/json" ^
+  -d "{\"symbol\":\"XLK\",\"asset_type\":\"etf\",\"active\":true}"
+```
+
+To deactivate a ticker:
+
+```bash
+curl -X DELETE http://localhost:8000/tickers/XLK
+```
+
+## Run A Scan Manually
+
+From the UI, click **Run Scanner** on the dashboard.
+
+From the API:
+
+```bash
+curl -X POST http://localhost:8000/scan/run
+```
+
+The backend also schedules a daily end-of-day scan at 6:00 PM America/New_York while the API process is running.
+
+## Key API Routes
+
+- `GET /health`
+- `GET /tickers`
+- `POST /tickers`
+- `PATCH /tickers/{symbol}`
+- `DELETE /tickers/{symbol}`
+- `POST /data/refresh`
+- `GET /data/{symbol}`
+- `POST /scan/run`
+- `GET /scan/runs`
+- `GET /scan/runs/{id}`
+- `GET /scan/status`
+- `GET /scan/latest`
+- `GET /scan/results/{id}`
+- `GET /journal`
+- `POST /journal`
+- `GET /journal/{id}`
+- `PATCH /journal/{id}`
+- `DELETE /journal/{id}`
+- `GET /performance/summary`
+
+## Configuration
+
+Backend `.env`:
+
+```text
+APP_ENV=development
+DEBUG=false
+DATABASE_URL=sqlite:///./trading_scanner.db
+AUTO_CREATE_TABLES=true
+MARKET_DATA_PROVIDER=yfinance
+SCAN_DEFAULT_LOOKBACK_DAYS=300
+MIN_AVG_VOLUME=500000
+MAX_ATR_PERCENT=8
+YFINANCE_CACHE_DIR=./.yf_cache
+JWT_SECRET_KEY=change-me-before-deploying
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=720
+ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+
+Frontend `.env.local`:
+
+```text
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+API_INTERNAL_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_APP_ENV=development
+```
+
+## Deployment Preparation
+
+The MVP is structured for deployment but is not deployed yet.
+
+Recommended production shape:
+
+- Backend: run FastAPI with `uvicorn` or `gunicorn` behind a managed HTTPS proxy.
+- Database: use PostgreSQL by setting `DATABASE_URL` to a PostgreSQL connection string.
+- Frontend: build with `npm run build` and run with `npm start`, or deploy to a Next.js-compatible host.
+- Environment: copy `backend/.env.example` and `frontend/.env.example` into platform-specific secret/config settings.
+- Scheduler: keep the backend process alive so the APScheduler daily scan can run, or move scheduled scans to a managed cron worker.
+
+Pre-deployment checklist:
+
+- Run `pytest` from `backend/`.
+- Run `npm run build` from `frontend/`.
+- Perform a real scan against the deployed backend.
+- Confirm CORS allows the deployed frontend origin.
+- Add authentication before exposing personal journal data publicly.
+- Add database migrations before moving beyond local SQLite.
+
+## First Hosted Deployment Checklist
+
+Required backend environment variables:
+
+```text
+APP_ENV=production
+DEBUG=false
+DATABASE_URL=postgresql://user:password@host:5432/trading_scanner
+AUTO_CREATE_TABLES=false
+MARKET_DATA_PROVIDER=yfinance
+SCAN_DEFAULT_LOOKBACK_DAYS=300
+MIN_AVG_VOLUME=500000
+MAX_ATR_PERCENT=8
+YFINANCE_CACHE_DIR=./.yf_cache
+JWT_SECRET_KEY=<at-least-32-random-characters>
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=720
+ALLOWED_ORIGINS=https://your-frontend-domain.example
+```
+
+Required frontend environment variables:
+
+```text
+NEXT_PUBLIC_API_BASE_URL=https://your-backend-domain.example
+API_INTERNAL_BASE_URL=https://your-backend-domain.example
+NEXT_PUBLIC_APP_ENV=production
+```
+
+Recommended beginner-friendly hosted stack:
+
+- Frontend: Vercel
+- Backend: Render Web Service or Railway Web Service
+- Database: Neon PostgreSQL or Supabase PostgreSQL
+
+Suggested order:
+
+1. Create the managed PostgreSQL database first.
+2. Deploy the backend and point it at PostgreSQL.
+3. Run Alembic migrations against the hosted database.
+4. Create the first admin user.
+5. Deploy the frontend and point it at the hosted backend.
+6. Run the deployment smoke test.
+
+PostgreSQL setup:
+
+- Create a private PostgreSQL database.
+- Create a database user with ownership or migration rights for the app database.
+- Store the connection string as `DATABASE_URL`.
+- Enable managed automated backups before first real use.
+
+Neon PostgreSQL notes:
+
+- Create a Neon project and database.
+- Copy the pooled or direct connection string into the backend `DATABASE_URL`.
+- Keep SSL enabled if Neon includes it in the connection string.
+- Enable automated backups or point-in-time restore for the project tier you choose.
+
+Supabase PostgreSQL notes:
+
+- Create a Supabase project.
+- Use the Postgres connection string from Project Settings.
+- Keep database credentials private and never place `DATABASE_URL` in frontend environment variables.
+- Review backup settings before storing real journal history.
+
+Backend deploy steps:
+
+```bash
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Render backend steps:
+
+- Create a new Web Service from the repository.
+- Root directory: `backend`.
+- Build command: `pip install -r requirements.txt`.
+- Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+- Add the backend environment variables in Render's Environment tab.
+- After the first deploy, open Render Shell and run `alembic upgrade head`.
+
+Railway backend steps:
+
+- Create a new service from the repository.
+- Set the service root to `backend`.
+- Add the backend environment variables in Railway Variables.
+- Use start command `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+- Run `alembic upgrade head` from a Railway shell or one-off command.
+
+Admin user creation:
+
+```bash
+python -m app.cli create-admin --email you@example.com --password "choose-a-strong-password"
+```
+
+For hosted services, run the same command in the provider shell after migrations complete.
+
+Frontend deploy steps:
+
+```bash
+npm ci
+npm run build
+npm start
+```
+
+Vercel frontend steps:
+
+- Import the repository into Vercel.
+- Set the root directory to `frontend`.
+- Add `NEXT_PUBLIC_API_BASE_URL`, `API_INTERNAL_BASE_URL`, and `NEXT_PUBLIC_APP_ENV`.
+- Deploy.
+- Copy the Vercel URL into backend `ALLOWED_ORIGINS`.
+- Redeploy the backend after changing `ALLOWED_ORIGINS`.
+
+Post-deploy smoke test:
+
+```bash
+python scripts/deployment_smoke_test.py \
+  --backend-url https://your-backend-domain.example \
+  --frontend-url https://your-frontend-domain.example \
+  --email you@example.com \
+  --password "choose-a-strong-password"
+```
+
+Manual smoke test:
+
+- Confirm backend `/health` returns OK.
+- Confirm unauthenticated `/scan/latest` returns 401.
+- Confirm login works.
+- Confirm dashboard loads after login.
+- Run one scan.
+- Open `/scanner/runs` and confirm completed, partial, and failed runs are visible.
+- Open scanner results and a ticker detail page.
+- Add a result to the journal.
+- Close a test journal entry and confirm performance updates.
+
+Production config guardrails:
+
+- `APP_ENV=production` refuses placeholder or short `JWT_SECRET_KEY` values.
+- `APP_ENV=production` requires explicit `ALLOWED_ORIGINS`.
+- `APP_ENV=production` refuses `AUTO_CREATE_TABLES=true`.
+- `APP_ENV=production` refuses SQLite.
+- `DEBUG=true` is rejected in production.
+
+Secure cookie guidance:
+
+- The current frontend stores the JWT in a same-site browser cookie for a simple private deployment.
+- In production over HTTPS, the frontend marks the cookie `Secure`.
+- Host the app only behind HTTPS.
+- Prefer a future HTTP-only secure cookie/session proxy before exposing the app beyond a private trusted user.
+- Keep `ACCESS_TOKEN_EXPIRE_MINUTES` reasonably short for hosted use.
+
+Operational notes:
+
+- Scanner execution is restricted to authenticated admin users.
+- Concurrent scanner runs are rejected so a manual scan cannot overlap the scheduled scan.
+- Scan history is retained; new scans do not overwrite older scan runs.
+- yfinance failures are retried with short backoff and then logged per ticker.
+- Review `/scanner/runs` after a hosted scan to spot partial data-provider failures.
+
+## Docker Compose Preview
+
+Docker support is included for private deployment preparation:
+
+```bash
+cd trading-scanner-app
+docker compose build
+docker compose up
+```
+
+Then create the first admin user inside the backend container:
+
+```bash
+docker compose exec backend python -m app.cli create-admin --email you@example.com --password "choose-a-strong-password"
+```
+
+The compose stack includes:
+
+- `postgres`
+- `backend`
+- `frontend`
+
+Before hosting, replace all example secrets in `backend/.env.docker.example`, especially `JWT_SECRET_KEY` and the PostgreSQL password.
+
+### Docker Validation On Windows
+
+1. Install Docker Desktop for Windows.
+2. Start Docker Desktop and wait until the engine is running.
+3. From PowerShell:
+
+```powershell
+cd "C:\Users\gwatk\OneDrive\Documents\Develop trading App\trading-scanner-app"
+docker compose build
+docker compose up
+```
+
+4. In a second PowerShell window, run migrations if you did not use the compose command that runs them:
+
+```powershell
+docker compose exec backend alembic upgrade head
+```
+
+5. Create the admin user:
+
+```powershell
+docker compose exec backend python -m app.cli create-admin --email you@example.com --password "choose-a-strong-password"
+```
+
+6. Verify locally:
+
+- Frontend: `http://localhost:3000`
+- Backend health: `http://localhost:8000/health`
+- Login with the admin user.
+- Run one scan and review scanner, journal, and performance pages.
+
+## Backup Note
+
+For SQLite local development, back up `backend/trading_scanner.db` when the app is stopped.
+
+For PostgreSQL production, prefer managed automated backups. Also know the manual commands.
+
+Manual backup:
+
+```bash
+pg_dump "$DATABASE_URL" > trading_scanner_backup.sql
+```
+
+Manual restore into a fresh database:
+
+```bash
+psql "$DATABASE_URL" < trading_scanner_backup.sql
+```
+
+For compressed custom-format backups:
+
+```bash
+pg_dump -Fc "$DATABASE_URL" > trading_scanner_backup.dump
+pg_restore --clean --if-exists --dbname "$DATABASE_URL" trading_scanner_backup.dump
+```
+
+Keep backups encrypted, restrict access, and test restores before relying on them.
+
+## Disclaimer
+
+This software is for educational and journaling purposes only. Scanner-generated setups are not trade recommendations and are not financial advice. Confirm risk, liquidity, market conditions, and your own trading plan before acting.
+"# trading-scanner-app" 
+"# trading-scanner-app" 
+"# trading-scanner-app" 
+"# trading-scanner-app" 

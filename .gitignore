@@ -1,0 +1,15 @@
+.env
+.env.local
+.venv/
+venv/
+node_modules/
+.next/
+__pycache__/
+*.py[cod]
+trading_scanner.db
+.pytest_cache/
+.yf_cache/
+backend/.yf_cache/
+*.log
+*.pid
+*.db
