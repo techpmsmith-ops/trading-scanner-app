@@ -1,46 +1,46 @@
-"use client";
-
-import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ScanResult } from "@/lib/api";
 
 export function ScannerCharts({ results }: { results: ScanResult[] }) {
   const topScores = results
     .slice()
     .sort((a, b) => b.score_total - a.score_total)
-    .slice(0, 10)
-    .map((result) => ({ symbol: result.symbol, score: result.score_total }));
+    .slice(0, 10);
   const setupCounts = countSetups(results);
 
   return (
     <section className="grid gap-4 lg:grid-cols-2">
       <div className="rounded-md border border-border bg-panel p-4">
         <h2 className="mb-4 font-semibold">Top Scores</h2>
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={topScores}>
-              <CartesianGrid stroke="#243044" vertical={false} />
-              <XAxis dataKey="symbol" stroke="#9aa7b8" tick={{ fontSize: 11 }} />
-              <YAxis domain={[0, 100]} stroke="#9aa7b8" tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ background: "#18202d", border: "1px solid #2d3747" }} />
-              <Bar dataKey="score" fill="#2fd17c" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="space-y-3">
+          {topScores.map((result) => (
+            <div key={result.id} className="grid grid-cols-[54px_1fr_36px] items-center gap-3 text-sm">
+              <span className="font-semibold">{result.symbol}</span>
+              <div className="h-3 rounded bg-panelSoft">
+                <div className="h-3 rounded bg-positive" style={{ width: `${Math.min(result.score_total, 100)}%` }} />
+              </div>
+              <span className="text-right text-positive">{result.score_total}</span>
+            </div>
+          ))}
         </div>
       </div>
       <div className="rounded-md border border-border bg-panel p-4">
         <h2 className="mb-4 font-semibold">Setup Mix</h2>
         {setupCounts.length ? (
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={setupCounts} dataKey="count" nameKey="setup" innerRadius={55} outerRadius={95} paddingAngle={2}>
-                  {setupCounts.map((entry, index) => (
-                    <Cell key={entry.setup} fill={SETUP_COLORS[index % SETUP_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ background: "#18202d", border: "1px solid #2d3747" }} />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="space-y-3">
+            {setupCounts.map((item, index) => {
+              const percent = Math.round((item.count / results.length) * 100);
+              return (
+                <div key={item.setup}>
+                  <div className="mb-1 flex justify-between text-xs text-muted">
+                    <span>{item.setup}</span>
+                    <span>{item.count}</span>
+                  </div>
+                  <div className="h-3 rounded bg-panelSoft">
+                    <div className="h-3 rounded" style={{ width: `${Math.max(percent, 5)}%`, backgroundColor: SETUP_COLORS[index % SETUP_COLORS.length] }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <p className="text-sm text-muted">No setup categories found in this scan.</p>
