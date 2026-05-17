@@ -6,7 +6,8 @@ import { StatusPill } from "@/components/StatusPill";
 import { api, currency, number, PriceBar, ScanRun } from "@/lib/api";
 import { authHeaders } from "@/lib/server-auth";
 
-export default async function TickerDetail({ params }: { params: { symbol: string } }) {
+export default async function TickerDetail({ params }: { params: Promise<{ symbol: string }> }) {
+  const { symbol } = await params;
   const headers = await authHeaders();
   let latest: ScanRun;
   try {
@@ -14,9 +15,14 @@ export default async function TickerDetail({ params }: { params: { symbol: strin
   } catch {
     notFound();
   }
-  const result = latest.results.find((item) => item.symbol === params.symbol.toUpperCase());
+  const result = latest.results.find((item) => item.symbol === symbol.toUpperCase());
   if (!result) notFound();
-  const bars = await api<PriceBar[]>(`/data/${result.symbol}`, { headers });
+  let bars: PriceBar[] = [];
+try {
+  bars = await api<PriceBar[]>(`/data/${result.symbol}`, { headers });
+} catch {
+  bars = [];
+}
 
   return (
     <div className="space-y-6">
@@ -28,7 +34,13 @@ export default async function TickerDetail({ params }: { params: { symbol: strin
         </div>
         <AddToJournalButton result={result} />
       </div>
-      <PriceChart bars={bars} />
+      {bars.length ? (
+  <PriceChart bars={bars} />
+) : (
+  <div className="rounded-md border border-caution/40 bg-caution/10 px-4 py-3 text-sm text-[#ffd88a]">
+    Price history is unavailable for this ticker right now. The scanner result below is still available for review.
+  </div>
+)}
       <section className="grid gap-4 lg:grid-cols-3">
         <Panel title="Score Breakdown">
           <Score label="Trend" value={result.score_trend} max={30} />
