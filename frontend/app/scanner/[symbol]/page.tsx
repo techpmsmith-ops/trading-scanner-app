@@ -45,11 +45,6 @@ export default async function TickerDetail({ params }: { params: Promise<{ symbo
       <section className="grid gap-4 lg:grid-cols-3">
         <Panel title="Score Breakdown">
           <TickerScoreChart result={result} />
-          <Score label="Trend" value={result.score_trend} max={30} />
-          <Score label="Momentum" value={result.score_momentum} max={20} />
-          <Score label="Volume" value={result.score_volume} max={15} />
-          <Score label="Risk" value={result.score_risk} max={15} />
-          <Score label="Setup Quality" value={result.score_setup_quality} max={20} />
         </Panel>
         <Panel title="Risk / Reward">
           <Fact label="Entry zone" value={currency(result.entry_zone)} />
@@ -84,6 +79,3 @@ function Fact({ label, value }: { label: string; value: string }) {
   return <div className="flex justify-between border-t border-border py-2 text-sm"><span className="text-muted">{label}</span><span>{value}</span></div>;
 }
 
-function Score({ label, value, max }: { label: string; value: number; max: number }) {
-  return <Fact label={label} value={`${value}/${max}`} />;
-}
