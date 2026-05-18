@@ -45,6 +45,68 @@ export type ScanStatus = {
   running: boolean;
 };
 
+export type DailyRecommendation = {
+  id: number;
+  recommendation_date: string;
+  scan_run_id: number;
+  scan_result_id: number;
+  symbol: string;
+  rank: number;
+  score_total: number;
+  setup_types: string[];
+  risk_flags: string[];
+  rationale: string;
+  disclaimer: string;
+  created_at: string;
+};
+
+export type WeeklyPrediction = {
+  id: number;
+  week_start: string;
+  week_end: string;
+  symbol: string;
+  scan_run_id: number | null;
+  scan_result_id: number | null;
+  direction: string;
+  predicted_return_pct: number;
+  confidence: number;
+  score_total: number;
+  component_scores: Record<string, number>;
+  rationale: string;
+  status: string;
+  start_price: number | null;
+  end_price: number | null;
+  actual_return_pct: number | null;
+  outcome: string | null;
+  created_at: string;
+  evaluated_at: string | null;
+};
+
+export type ScoringWeight = {
+  id: number;
+  effective_date: string;
+  weights: Record<string, number>;
+  reason: string;
+  created_at: string;
+};
+
+export type AlertSubscription = {
+  id: number;
+  channel: "telegram" | "sms";
+  destination_label: string | null;
+  enabled: boolean;
+  alert_types: string[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type Phase2Dashboard = {
+  daily_top_five: DailyRecommendation[];
+  weekly_predictions: WeeklyPrediction[];
+  scoring_weights: ScoringWeight | null;
+  prediction_symbols: string[];
+};
+
 export type PriceBar = {
   date: string;
   open: number;

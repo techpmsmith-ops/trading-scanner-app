@@ -177,6 +177,15 @@ The backend also schedules a daily end-of-day scan at 6:00 PM America/New_York w
 - `PATCH /journal/{id}`
 - `DELETE /journal/{id}`
 - `GET /performance/summary`
+- `GET /phase2/dashboard`
+- `POST /phase2/recommendations/generate`
+- `GET /phase2/recommendations/latest`
+- `POST /phase2/predictions/generate`
+- `POST /phase2/predictions/evaluate`
+- `GET /phase2/predictions`
+- `GET /phase2/weights/latest`
+- `GET /phase2/alerts`
+- `POST /phase2/alerts`
 
 ## Configuration
 
@@ -188,10 +197,18 @@ DEBUG=false
 DATABASE_URL=sqlite:///./trading_scanner.db
 AUTO_CREATE_TABLES=true
 MARKET_DATA_PROVIDER=yfinance
+MARKET_DATA_FALLBACK_PROVIDER=stooq
 SCAN_DEFAULT_LOOKBACK_DAYS=300
 MIN_AVG_VOLUME=500000
 MAX_ATR_PERCENT=8
 YFINANCE_CACHE_DIR=./.yf_cache
+PHASE2_PREDICTION_SYMBOLS=INTC,NVDA,AMD,IONQ,NVTS
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_FROM_NUMBER=
+TWILIO_TO_NUMBER=
 JWT_SECRET_KEY=change-me-before-deploying
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=720
@@ -468,6 +485,42 @@ pg_restore --clean --if-exists --dbname "$DATABASE_URL" trading_scanner_backup.d
 ```
 
 Keep backups encrypted, restrict access, and test restores before relying on them.
+
+## Phase 2 Features
+
+Phase 2 adds richer decision-support features while keeping the app private and non-executing:
+
+- Interactive ticker price chart periods: `1M`, `3M`, `YTD`, `1Y`, and `All`.
+- Secondary market-data fallback through Stooq when yfinance fails.
+- Daily top-five watchlist candidates generated from the latest scan.
+- Weekly prediction tracking for `INTC`, `NVDA`, `AMD`, `IONQ`, and `NVTS`.
+- Feedback loop that evaluates completed weekly predictions against actual weekly price movement and nudges scanner component weights within a bounded `0.8x` to `1.2x` range.
+- Optional Telegram and SMS alerts for top-five and weekly prediction summaries.
+
+These outputs are still scanner-generated signals for review, not trade recommendations.
+
+Apply Phase 2 migrations:
+
+```bash
+cd trading-scanner-app/backend
+alembic upgrade head
+```
+
+Optional Telegram alert env vars:
+
+```text
+TELEGRAM_BOT_TOKEN=<bot token>
+TELEGRAM_CHAT_ID=<chat id>
+```
+
+Optional Twilio SMS env vars:
+
+```text
+TWILIO_ACCOUNT_SID=<account sid>
+TWILIO_AUTH_TOKEN=<auth token>
+TWILIO_FROM_NUMBER=<twilio number>
+TWILIO_TO_NUMBER=<destination number>
+```
 
 ## Disclaimer
 

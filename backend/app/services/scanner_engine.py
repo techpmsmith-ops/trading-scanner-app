@@ -10,6 +10,7 @@ from app.services.explanations import build_explanation
 from app.services.indicators import latest_indicator_snapshot
 from app.services.market_data import bars_for_ticker, fetch_daily_bars, upsert_price_bars
 from app.services.logging import log_event, log_warning
+from app.services.phase2 import latest_weights
 from app.services.risk_reward import estimate_risk_reward
 from app.services.scoring import classify_setups, score_result
 
@@ -42,6 +43,7 @@ def run_scanner(db: Session, lookback_days: int = SCAN_DEFAULT_LOOKBACK_DAYS) ->
 
         failures: list[str] = []
         results_count = 0
+        component_weights = latest_weights(db)
         for ticker in tickers:
             try:
                 downloaded = fetch_daily_bars(ticker.symbol, lookback_days=lookback_days)
@@ -52,7 +54,7 @@ def run_scanner(db: Session, lookback_days: int = SCAN_DEFAULT_LOOKBACK_DAYS) ->
 
                 indicators = latest_indicator_snapshot(bars)
                 setups, risk_flags = classify_setups(indicators)
-                scores = score_result(indicators, setups, risk_flags)
+                scores = score_result(indicators, setups, risk_flags, component_weights=component_weights)
                 rr = estimate_risk_reward(indicators, setups)
                 explanation = build_explanation(ticker.symbol, scores, indicators, setups, risk_flags)
                 db.add(

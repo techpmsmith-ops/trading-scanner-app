@@ -1,5 +1,13 @@
 from app.config import MAX_ATR_PERCENT, MIN_AVG_VOLUME
 
+DEFAULT_COMPONENT_WEIGHTS = {
+    "trend": 1.0,
+    "momentum": 1.0,
+    "volume": 1.0,
+    "risk": 1.0,
+    "setup_quality": 1.0,
+}
+
 
 def classify_setups(indicators: dict) -> tuple[list[str], list[str]]:
     close = indicators["close"]
@@ -57,7 +65,8 @@ def classify_setups(indicators: dict) -> tuple[list[str], list[str]]:
     return list(dict.fromkeys(setups)), list(dict.fromkeys(flags))
 
 
-def score_result(indicators: dict, setups: list[str], risk_flags: list[str]) -> dict:
+def score_result(indicators: dict, setups: list[str], risk_flags: list[str], component_weights: dict | None = None) -> dict:
+    weights = {**DEFAULT_COMPONENT_WEIGHTS, **(component_weights or {})}
     close = indicators["close"]
     ema_20 = indicators.get("ema_20")
     sma_50 = indicators.get("sma_50")
@@ -99,7 +108,14 @@ def score_result(indicators: dict, setups: list[str], risk_flags: list[str]) -> 
     quality += 4 if "Momentum Strength" in setups else 0
     quality += 2 if any(s in setups for s in ["Breakout Candidate", "Trend Continuation Pullback", "Momentum Strength", "Oversold Bounce Watch"]) else 0
 
-    total = max(0, min(100, trend + momentum + volume + risk + quality - max(0, len(risk_flags) - 1) * 3))
+    weighted_total = (
+        trend * float(weights.get("trend", 1.0))
+        + momentum * float(weights.get("momentum", 1.0))
+        + volume * float(weights.get("volume", 1.0))
+        + risk * float(weights.get("risk", 1.0))
+        + quality * float(weights.get("setup_quality", 1.0))
+    )
+    total = max(0, min(100, round(weighted_total - max(0, len(risk_flags) - 1) * 3)))
     return {
         "score_trend": trend,
         "score_momentum": momentum,

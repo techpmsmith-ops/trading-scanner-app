@@ -190,3 +190,81 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserRead
+
+
+class DailyRecommendationRead(ORMModel):
+    id: int
+    recommendation_date: date
+    scan_run_id: int
+    scan_result_id: int
+    symbol: str
+    rank: int
+    score_total: int
+    setup_types: list[str]
+    risk_flags: list[str]
+    rationale: str
+    disclaimer: str
+    created_at: datetime
+
+
+class WeeklyPredictionRead(ORMModel):
+    id: int
+    week_start: date
+    week_end: date
+    symbol: str
+    scan_run_id: int | None
+    scan_result_id: int | None
+    direction: str
+    predicted_return_pct: float
+    confidence: float
+    score_total: int
+    component_scores: dict[str, Any]
+    rationale: str
+    status: str
+    start_price: float | None
+    end_price: float | None
+    actual_return_pct: float | None
+    outcome: str | None
+    created_at: datetime
+    evaluated_at: datetime | None
+
+
+class ScoringWeightRead(ORMModel):
+    id: int
+    effective_date: date
+    weights: dict[str, float]
+    reason: str
+    created_at: datetime
+
+
+class AlertSubscriptionCreate(BaseModel):
+    channel: Literal["telegram", "sms"]
+    destination_label: str | None = None
+    enabled: bool = True
+    alert_types: list[str] = ["daily_top_five", "weekly_predictions"]
+
+
+class AlertSubscriptionUpdate(BaseModel):
+    destination_label: str | None = None
+    enabled: bool | None = None
+    alert_types: list[str] | None = None
+
+
+class AlertSubscriptionRead(AlertSubscriptionCreate, ORMModel):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class AlertTestResponse(BaseModel):
+    channel: str
+    configured: bool
+    sent: bool
+    detail: str
+
+
+class Phase2Dashboard(BaseModel):
+    daily_top_five: list[DailyRecommendationRead]
+    weekly_predictions: list[WeeklyPredictionRead]
+    scoring_weights: ScoringWeightRead | None
+    prediction_symbols: list[str]

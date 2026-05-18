@@ -6,7 +6,7 @@ import pandas as pd
 import yfinance as yf
 from sqlalchemy.orm import Session
 
-from app.config import YFINANCE_CACHE_DIR
+from app.config import MARKET_DATA_FALLBACK_PROVIDER, YFINANCE_CACHE_DIR
 from app.models import PriceBar, Ticker
 from app.services.logging import log_warning
 
@@ -37,6 +37,8 @@ def fetch_daily_bars(symbol: str, lookback_days: int = 300) -> pd.DataFrame:
             delay = attempt * 2
             log_warning("market_data_retry", symbol=symbol, attempt=attempt, delay_seconds=delay, error=str(last_error))
             time.sleep(delay)
+    if data.empty and MARKET_DATA_FALLBACK_PROVIDER == "stooq":
+        data = fetch_stooq_daily_bars(symbol, lookback_days)
     if data.empty:
         raise ValueError(f"No market data returned for {symbol}: {last_error}")
     if isinstance(data.columns, pd.MultiIndex):
@@ -54,6 +56,32 @@ def fetch_daily_bars(symbol: str, lookback_days: int = 300) -> pd.DataFrame:
         },
         inplace=True,
     )
+    return data[["date", "open", "high", "low", "close", "adjusted_close", "volume"]].dropna()
+
+
+def fetch_stooq_daily_bars(symbol: str, lookback_days: int = 300) -> pd.DataFrame:
+    stooq_symbol = f"{symbol.lower()}.us"
+    url = f"https://stooq.com/q/d/l/?s={stooq_symbol}&i=d"
+    try:
+        data = pd.read_csv(url)
+    except Exception as exc:
+        log_warning("market_data_fallback_failed", symbol=symbol, provider="stooq", error=str(exc))
+        return pd.DataFrame()
+    if data.empty:
+        return pd.DataFrame()
+    data.rename(
+        columns={
+            "Date": "date",
+            "Open": "open",
+            "High": "high",
+            "Low": "low",
+            "Close": "close",
+            "Volume": "volume",
+        },
+        inplace=True,
+    )
+    data["adjusted_close"] = data["close"]
+    data = data.tail(lookback_days)
     return data[["date", "open", "high", "low", "close", "adjusted_close", "volume"]].dropna()
 
 

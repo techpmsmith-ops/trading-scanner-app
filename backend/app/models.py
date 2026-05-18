@@ -97,6 +97,75 @@ class ScanResult(Base):
     ticker = relationship("Ticker")
 
 
+class DailyRecommendation(Base):
+    __tablename__ = "daily_recommendations"
+    __table_args__ = (UniqueConstraint("recommendation_date", "rank", name="uq_daily_recommendations_date_rank"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    recommendation_date: Mapped[date] = mapped_column(Date, index=True)
+    scan_run_id: Mapped[int] = mapped_column(ForeignKey("scan_runs.id"), index=True)
+    scan_result_id: Mapped[int] = mapped_column(ForeignKey("scan_results.id"), index=True)
+    symbol: Mapped[str] = mapped_column(String(16), index=True)
+    rank: Mapped[int] = mapped_column(Integer)
+    score_total: Mapped[int] = mapped_column(Integer)
+    setup_types: Mapped[list] = mapped_column(JSON, default=list)
+    risk_flags: Mapped[list] = mapped_column(JSON, default=list)
+    rationale: Mapped[str] = mapped_column(Text)
+    disclaimer: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    scan_result = relationship("ScanResult")
+    scan_run = relationship("ScanRun")
+
+
+class WeeklyPrediction(Base):
+    __tablename__ = "weekly_predictions"
+    __table_args__ = (UniqueConstraint("week_start", "symbol", name="uq_weekly_predictions_week_symbol"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    week_start: Mapped[date] = mapped_column(Date, index=True)
+    week_end: Mapped[date] = mapped_column(Date, index=True)
+    symbol: Mapped[str] = mapped_column(String(16), index=True)
+    scan_run_id: Mapped[int | None] = mapped_column(ForeignKey("scan_runs.id"), nullable=True)
+    scan_result_id: Mapped[int | None] = mapped_column(ForeignKey("scan_results.id"), nullable=True)
+    direction: Mapped[str] = mapped_column(String(20))
+    predicted_return_pct: Mapped[float] = mapped_column(Float)
+    confidence: Mapped[float] = mapped_column(Float)
+    score_total: Mapped[int] = mapped_column(Integer, default=0)
+    component_scores: Mapped[dict] = mapped_column(JSON, default=dict)
+    rationale: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    start_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    end_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    actual_return_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    evaluated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    scan_result = relationship("ScanResult")
+    scan_run = relationship("ScanRun")
+
+
+class ScoringWeight(Base):
+    __tablename__ = "scoring_weights"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    effective_date: Mapped[date] = mapped_column(Date, index=True)
+    weights: Mapped[dict] = mapped_column(JSON, default=dict)
+    reason: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AlertSubscription(Base, TimestampMixin):
+    __tablename__ = "alert_subscriptions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    channel: Mapped[str] = mapped_column(String(20), index=True)
+    destination_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    alert_types: Mapped[list] = mapped_column(JSON, default=list)
+
+
 class JournalEntry(Base, TimestampMixin):
     __tablename__ = "journal_entries"
 

@@ -150,6 +150,61 @@ npm run build
 
 These chart changes need to be committed/pushed to GitHub before Vercel can deploy them.
 
+### Phase 2 Local Implementation - 2026-05-18
+
+Implemented Phase 2 decision-support features locally:
+
+- `/signals` frontend page with:
+  - Daily top-five watchlist candidates
+  - Weekly prediction tracking table
+  - Feedback weight display
+  - Admin action buttons for top-five generation, weekly prediction generation, and feedback evaluation
+- Backend `/phase2` API:
+  - `GET /phase2/dashboard`
+  - `POST /phase2/recommendations/generate`
+  - `GET /phase2/recommendations/latest`
+  - `POST /phase2/predictions/generate`
+  - `POST /phase2/predictions/evaluate`
+  - `GET /phase2/predictions`
+  - `GET /phase2/weights/latest`
+  - alert subscription/test endpoints
+- New persisted models:
+  - `DailyRecommendation`
+  - `WeeklyPrediction`
+  - `ScoringWeight`
+  - `AlertSubscription`
+- Alembic migration:
+  - `backend/alembic/versions/20260518_0003_phase2.py`
+- Optional alert integrations:
+  - Telegram via `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`
+  - SMS via Twilio env vars
+- Market-data fallback:
+  - yfinance remains primary
+  - Stooq fallback added through `MARKET_DATA_FALLBACK_PROVIDER=stooq`
+- Weekly tracked symbols:
+  - `INTC`, `NVDA`, `AMD`, `IONQ`, `NVTS`
+- Feedback loop:
+  - Evaluates completed weekly predictions against actual weekly return when price bars exist
+  - Nudges scanner component weights within bounded `0.8x` to `1.2x`
+  - Future scanner runs apply latest scoring weights
+
+Validation:
+
+```text
+backend alembic upgrade head => passed
+backend pytest => 13 passed
+frontend npm run build => passed
+```
+
+Deployment reminder:
+
+```bash
+cd backend
+alembic upgrade head
+```
+
+Run this on Render after pushing/deploying Phase 2 so Neon has the new tables.
+
 ### Render Fix Needed
 
 In Render, open `trading-scanner-backend` and verify:
