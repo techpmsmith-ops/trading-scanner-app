@@ -495,6 +495,7 @@ Phase 2 adds richer decision-support features while keeping the app private and 
 - Daily top-five watchlist candidates generated from the latest scan.
 - Weekly prediction tracking for `INTC`, `NVDA`, `AMD`, `IONQ`, and `NVTS`.
 - Feedback loop that evaluates completed weekly predictions against actual weekly price movement and nudges scanner component weights within a bounded `0.8x` to `1.2x` range.
+- End-of-week evaluation reports showing prediction accuracy, win/loss ratio, false positives, indicator effectiveness, news-sentiment alignment, and SPY/QQQ market conditions.
 - Optional Telegram and SMS alerts for top-five and weekly prediction summaries.
 
 These outputs are still scanner-generated signals for review, not trade recommendations.

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.config import PHASE2_PREDICTION_SYMBOLS
 from app.database import get_db
-from app.models import AlertSubscription, DailyRecommendation, WeeklyPrediction
+from app.models import AlertSubscription, DailyRecommendation, WeeklyEvaluationReport, WeeklyPrediction
 from app.schemas import (
     AlertSubscriptionCreate,
     AlertSubscriptionRead,
@@ -12,6 +12,7 @@ from app.schemas import (
     DailyRecommendationRead,
     Phase2Dashboard,
     ScoringWeightRead,
+    WeeklyEvaluationReportRead,
     WeeklyPredictionRead,
 )
 from app.services.alerts import send_alerts, send_channel
@@ -20,6 +21,7 @@ from app.services.phase2 import (
     evaluate_weekly_predictions,
     generate_daily_top_five,
     generate_weekly_predictions,
+    latest_evaluation_report,
     latest_weight_row,
 )
 
@@ -32,6 +34,7 @@ def dashboard(db: Session = Depends(get_db)):
         "daily_top_five": latest_daily_top_five(db),
         "weekly_predictions": latest_weekly_predictions(db),
         "scoring_weights": latest_weight_row(db),
+        "latest_evaluation": latest_evaluation_report(db),
         "prediction_symbols": PHASE2_PREDICTION_SYMBOLS,
     }
 
@@ -60,6 +63,16 @@ def create_predictions(db: Session = Depends(get_db), _admin=Depends(get_current
 @router.post("/predictions/evaluate", response_model=list[WeeklyPredictionRead])
 def evaluate_predictions(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
     return evaluate_weekly_predictions(db)
+
+
+@router.get("/evaluations/latest", response_model=WeeklyEvaluationReportRead | None)
+def get_latest_evaluation(db: Session = Depends(get_db)):
+    return latest_evaluation_report(db)
+
+
+@router.get("/evaluations", response_model=list[WeeklyEvaluationReportRead])
+def get_evaluations(db: Session = Depends(get_db)):
+    return db.query(WeeklyEvaluationReport).order_by(WeeklyEvaluationReport.created_at.desc()).limit(20).all()
 
 
 @router.get("/predictions", response_model=list[WeeklyPredictionRead])

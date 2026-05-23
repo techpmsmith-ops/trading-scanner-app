@@ -139,6 +139,9 @@ class WeeklyPrediction(Base):
     end_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     actual_return_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    false_positive: Mapped[bool] = mapped_column(Boolean, default=False)
+    news_sentiment_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    news_sentiment_label: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     evaluated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
@@ -153,6 +156,27 @@ class ScoringWeight(Base):
     effective_date: Mapped[date] = mapped_column(Date, index=True)
     weights: Mapped[dict] = mapped_column(JSON, default=dict)
     reason: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class WeeklyEvaluationReport(Base):
+    __tablename__ = "weekly_evaluation_reports"
+    __table_args__ = (UniqueConstraint("week_start", "week_end", name="uq_weekly_evaluation_reports_week"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    week_start: Mapped[date] = mapped_column(Date, index=True)
+    week_end: Mapped[date] = mapped_column(Date, index=True)
+    evaluated_count: Mapped[int] = mapped_column(Integer, default=0)
+    accuracy: Mapped[float] = mapped_column(Float, default=0)
+    wins: Mapped[int] = mapped_column(Integer, default=0)
+    losses: Mapped[int] = mapped_column(Integer, default=0)
+    win_loss_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
+    false_positives: Mapped[int] = mapped_column(Integer, default=0)
+    indicator_effectiveness: Mapped[dict] = mapped_column(JSON, default=dict)
+    news_sentiment_correlation: Mapped[dict] = mapped_column(JSON, default=dict)
+    market_conditions: Mapped[dict] = mapped_column(JSON, default=dict)
+    weight_changes: Mapped[dict] = mapped_column(JSON, default=dict)
+    confidence_notes: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

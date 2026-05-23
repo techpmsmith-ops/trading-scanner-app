@@ -5,7 +5,7 @@ import pytest
 
 from app.main import app
 from app.database import SessionLocal, init_db
-from app.models import AlertSubscription, DailyRecommendation, PriceBar, ScanResult, ScanRun, ScoringWeight, Ticker, User, WeeklyPrediction
+from app.models import AlertSubscription, DailyRecommendation, PriceBar, ScanResult, ScanRun, ScoringWeight, Ticker, User, WeeklyEvaluationReport, WeeklyPrediction
 from app.services.auth import get_current_user
 
 
@@ -48,14 +48,14 @@ def sample_bars(days: int = 260) -> pd.DataFrame:
 def db_session():
     init_db()
     db = SessionLocal()
-    for model in [DailyRecommendation, WeeklyPrediction, ScoringWeight, AlertSubscription, ScanResult, PriceBar, ScanRun, Ticker]:
+    for model in [DailyRecommendation, WeeklyEvaluationReport, WeeklyPrediction, ScoringWeight, AlertSubscription, ScanResult, PriceBar, ScanRun, Ticker]:
         db.query(model).delete()
     db.commit()
     try:
         yield db
     finally:
         db.rollback()
-        for model in [DailyRecommendation, WeeklyPrediction, ScoringWeight, AlertSubscription, ScanResult, PriceBar, ScanRun, Ticker]:
+        for model in [DailyRecommendation, WeeklyEvaluationReport, WeeklyPrediction, ScoringWeight, AlertSubscription, ScanResult, PriceBar, ScanRun, Ticker]:
             db.query(model).delete()
         db.commit()
         db.close()

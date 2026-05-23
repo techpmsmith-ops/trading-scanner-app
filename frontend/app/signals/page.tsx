@@ -88,6 +88,52 @@ export default async function SignalsPage() {
           </section>
 
           <section className="rounded-md border border-border bg-panel p-4">
+            <h2 className="font-semibold">Weekly Evaluation</h2>
+            {dashboard.latest_evaluation ? (
+              <div className="mt-4 space-y-5">
+                <div className="grid gap-3 md:grid-cols-5">
+                  <Metric label="Accuracy" value={`${number(dashboard.latest_evaluation.accuracy * 100, 0)}%`} />
+                  <Metric label="Wins" value={String(dashboard.latest_evaluation.wins)} />
+                  <Metric label="Losses" value={String(dashboard.latest_evaluation.losses)} />
+                  <Metric label="Win/Loss" value={dashboard.latest_evaluation.win_loss_ratio === null ? "-" : number(dashboard.latest_evaluation.win_loss_ratio)} />
+                  <Metric label="False Positives" value={String(dashboard.latest_evaluation.false_positives)} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Market Conditions</h3>
+                  <p className="mt-1 text-sm text-muted">
+                    Regime: {String(dashboard.latest_evaluation.market_conditions.regime || "unknown")}
+                    {dashboard.latest_evaluation.market_conditions.SPY ? ` | SPY ${number(dashboard.latest_evaluation.market_conditions.SPY.return_pct)}%` : ""}
+                    {dashboard.latest_evaluation.market_conditions.QQQ ? ` | QQQ ${number(dashboard.latest_evaluation.market_conditions.QQQ.return_pct)}%` : ""}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Indicator Effectiveness</h3>
+                  <div className="mt-3 grid gap-3 md:grid-cols-5">
+                    {Object.entries(dashboard.latest_evaluation.indicator_effectiveness).map(([name, stats]) => (
+                      <div key={name} className="rounded-md border border-border bg-panelSoft p-3">
+                        <div className="text-xs uppercase text-muted">{name.replace("_", " ")}</div>
+                        <div className="mt-1 text-lg font-semibold">{number((stats.hit_rate || 0) * 100, 0)}%</div>
+                        <div className="mt-1 text-xs text-muted">FP {stats.false_positive_count || 0} | n={stats.sample_size || 0}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">News Sentiment Correlation</h3>
+                  <p className="mt-1 text-sm text-muted">
+                    Alignment {number((dashboard.latest_evaluation.news_sentiment_correlation.alignment_rate || 0) * 100, 0)}%
+                    {" "}across {dashboard.latest_evaluation.news_sentiment_correlation.sample_size || 0} symbols.
+                    Avg sentiment {number(dashboard.latest_evaluation.news_sentiment_correlation.average_sentiment_score || 0, 3)}.
+                  </p>
+                </div>
+                <p className="text-sm text-muted">{dashboard.latest_evaluation.confidence_notes}</p>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-muted">No completed weekly evaluation yet. Click Evaluate Feedback after a tracked week has completed.</p>
+            )}
+          </section>
+
+          <section className="rounded-md border border-border bg-panel p-4">
             <h2 className="font-semibold">Current Feedback Weights</h2>
             {dashboard.scoring_weights ? (
               <div className="mt-4 grid gap-3 md:grid-cols-5">
@@ -105,6 +151,15 @@ export default async function SignalsPage() {
           </section>
         </>
       )}
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-panelSoft p-3">
+      <div className="text-xs uppercase text-muted">{label}</div>
+      <div className="mt-1 text-lg font-semibold">{value}</div>
     </div>
   );
 }

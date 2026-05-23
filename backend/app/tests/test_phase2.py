@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from app.models import PriceBar, ScanResult, ScanRun, Ticker, WeeklyPrediction
-from app.services.phase2 import adjust_scoring_weights, generate_daily_top_five, generate_weekly_predictions
+from app.services.phase2 import adjust_scoring_weights, build_weekly_evaluation_report, generate_daily_top_five, generate_weekly_predictions
 
 
 def test_daily_top_five_generates_from_latest_scan(db_session):
@@ -60,7 +60,36 @@ def test_feedback_adjusts_weight_bounds(db_session):
         outcome="hit",
     )
 
-    row = adjust_scoring_weights(db_session, [prediction])
+    report = build_weekly_evaluation_report(db_session, [prediction])
+    row = adjust_scoring_weights(db_session, [prediction], report)
 
     assert row.weights["trend"] > 1
     assert 0.8 <= row.weights["trend"] <= 1.2
+    assert report.accuracy == 1
+    assert report.indicator_effectiveness["trend"]["hit_rate"] == 1
+
+
+def test_weekly_report_tracks_false_positive_and_sentiment(db_session):
+    prediction = WeeklyPrediction(
+        week_start=date.today() - timedelta(days=14),
+        week_end=date.today() - timedelta(days=8),
+        symbol="NVDA",
+        direction="bullish",
+        predicted_return_pct=3,
+        confidence=0.7,
+        score_total=80,
+        component_scores={"trend": 20, "momentum": 20, "volume": 15, "risk": 10, "setup_quality": 10},
+        rationale="Test",
+        status="evaluated",
+        actual_return_pct=-2,
+        outcome="miss",
+        false_positive=True,
+        news_sentiment_score=0.5,
+        news_sentiment_label="positive",
+    )
+
+    report = build_weekly_evaluation_report(db_session, [prediction])
+
+    assert report.false_positives == 1
+    assert report.accuracy == 0
+    assert report.news_sentiment_correlation["sample_size"] == 1

@@ -90,6 +90,30 @@ export type ScoringWeight = {
   created_at: string;
 };
 
+export type WeeklyEvaluationReport = {
+  id: number;
+  week_start: string;
+  week_end: string;
+  evaluated_count: number;
+  accuracy: number;
+  wins: number;
+  losses: number;
+  win_loss_ratio: number | null;
+  false_positives: number;
+  indicator_effectiveness: Record<string, Record<string, number>>;
+  news_sentiment_correlation: {
+    sample_size?: number;
+    aligned_count?: number;
+    alignment_rate?: number;
+    average_sentiment_score?: number;
+    by_symbol?: Record<string, { score: number | null; label: string | null; outcome: string | null }>;
+  };
+  market_conditions: Record<string, any>;
+  weight_changes: Record<string, any>;
+  confidence_notes: string;
+  created_at: string;
+};
+
 export type AlertSubscription = {
   id: number;
   channel: "telegram" | "sms";
@@ -104,6 +128,7 @@ export type Phase2Dashboard = {
   daily_top_five: DailyRecommendation[];
   weekly_predictions: WeeklyPrediction[];
   scoring_weights: ScoringWeight | null;
+  latest_evaluation: WeeklyEvaluationReport | null;
   prediction_symbols: string[];
 };
 

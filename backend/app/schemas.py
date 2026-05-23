@@ -225,6 +225,9 @@ class WeeklyPredictionRead(ORMModel):
     end_price: float | None
     actual_return_pct: float | None
     outcome: str | None
+    false_positive: bool
+    news_sentiment_score: float | None
+    news_sentiment_label: str | None
     created_at: datetime
     evaluated_at: datetime | None
 
@@ -234,6 +237,24 @@ class ScoringWeightRead(ORMModel):
     effective_date: date
     weights: dict[str, float]
     reason: str
+    created_at: datetime
+
+
+class WeeklyEvaluationReportRead(ORMModel):
+    id: int
+    week_start: date
+    week_end: date
+    evaluated_count: int
+    accuracy: float
+    wins: int
+    losses: int
+    win_loss_ratio: float | None
+    false_positives: int
+    indicator_effectiveness: dict[str, Any]
+    news_sentiment_correlation: dict[str, Any]
+    market_conditions: dict[str, Any]
+    weight_changes: dict[str, Any]
+    confidence_notes: str
     created_at: datetime
 
 
@@ -267,4 +288,5 @@ class Phase2Dashboard(BaseModel):
     daily_top_five: list[DailyRecommendationRead]
     weekly_predictions: list[WeeklyPredictionRead]
     scoring_weights: ScoringWeightRead | None
+    latest_evaluation: WeeklyEvaluationReportRead | None
     prediction_symbols: list[str]

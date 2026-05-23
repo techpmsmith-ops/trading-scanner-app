@@ -205,6 +205,106 @@ alembic upgrade head
 
 Run this on Render after pushing/deploying Phase 2 so Neon has the new tables.
 
+### Phase 2 Hosted Status - 2026-05-18
+
+Phase 2 was pushed and deployed.
+
+Key commits:
+
+```text
+4f3140f Add phase 2 signals and prediction tracking
+92c2b78 Log auth failures safely
+```
+
+Hosted checks:
+
+```text
+GET https://trading-scanner-app-g1d7.onrender.com/health
+=> 200
+
+GET https://trading-scanner-app-g1d7.onrender.com/phase2/dashboard without token
+=> 401
+
+GET https://trading-scanner-app.vercel.app/signals
+=> 200
+```
+
+OpenAPI confirmed Phase 2 routes are live:
+
+```text
+/phase2/dashboard
+/phase2/recommendations/generate
+/phase2/recommendations/latest
+/phase2/predictions/generate
+/phase2/predictions/evaluate
+/phase2/predictions
+/phase2/weights/latest
+/phase2/alerts
+/phase2/alerts/{alert_id}
+/phase2/alerts/test/{channel}
+```
+
+Auth issue encountered:
+
+- `/auth/login` briefly returned `500`.
+- Added safer auth exception logging.
+- After redeploy, PowerShell login check returned `200`.
+- The pasted output included a live JWT token. Rotate `JWT_SECRET_KEY` in Render after testing.
+
+Signals UI current state:
+
+- `/signals` loads successfully after login.
+- Daily Top Five section shows empty state.
+- Weekly Prediction Tracking section shows empty state.
+- Feedback weights show defaults active.
+
+Next resume steps:
+
+1. Run a fresh scanner run from Dashboard.
+2. Return to Signals.
+3. Click **Top Five**.
+4. Click **Weekly Predictions**.
+5. Confirm daily top five and weekly predictions populate.
+6. Do not use **Evaluate Feedback** until a tracked week has completed and price data exists.
+7. Rotate Render `JWT_SECRET_KEY`, redeploy backend, then log out and back in.
+
+### Weekly Feedback Upgrade - 2026-05-23
+
+Implemented a richer end-of-week prediction evaluation flow locally:
+
+- Market week now ends Friday instead of Sunday.
+- Evaluation can run on Saturday for the just-ended trading week.
+- Evaluation fetches missing tracked-symbol price bars before comparing actual performance.
+- Weekly predictions now store:
+  - false-positive flag
+  - news sentiment score
+  - news sentiment label
+- Added `WeeklyEvaluationReport` persisted report with:
+  - prediction accuracy
+  - wins/losses
+  - win/loss ratio
+  - false positives
+  - indicator effectiveness
+  - news sentiment correlation
+  - SPY/QQQ market conditions
+  - scoring weight changes
+  - confidence calibration notes
+- Signals page now displays the latest weekly evaluation report.
+- Scoring weight adjustment now uses hit rate and false positives by component, still bounded between `0.8x` and `1.2x`.
+
+Deployment reminder:
+
+```bash
+cd backend
+alembic upgrade head
+```
+
+The new migration is:
+
+```text
+backend/alembic/versions/20260523_0004_weekly_evaluation_reports.py
+```
+
 ### Render Fix Needed
 
 In Render, open `trading-scanner-backend` and verify:
