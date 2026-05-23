@@ -181,6 +181,7 @@ The backend also schedules a daily end-of-day scan at 6:00 PM America/New_York w
 - `POST /phase2/recommendations/generate`
 - `GET /phase2/recommendations/latest`
 - `POST /phase2/predictions/generate`
+- `POST /phase2/predictions/regenerate-current-week`
 - `POST /phase2/predictions/evaluate`
 - `GET /phase2/predictions`
 - `GET /phase2/weights/latest`

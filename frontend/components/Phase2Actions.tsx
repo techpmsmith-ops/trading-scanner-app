@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, RefreshCw, Send } from "lucide-react";
+import { Bell, RefreshCw, RotateCcw, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
@@ -31,6 +31,9 @@ export function Phase2Actions() {
       </button>
       <button onClick={() => run("/phase2/predictions/generate", "Weekly predictions")} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-md border border-border bg-panel px-3 py-2 text-sm text-ink disabled:opacity-60">
         <Bell size={16} /> Weekly Predictions
+      </button>
+      <button onClick={() => run("/phase2/predictions/regenerate-current-week", "Regenerate market week")} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-md border border-border bg-panel px-3 py-2 text-sm text-ink disabled:opacity-60">
+        <RotateCcw size={16} /> Regenerate Week
       </button>
       <button onClick={() => run("/phase2/predictions/evaluate", "Prediction evaluation")} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-md border border-border bg-panel px-3 py-2 text-sm text-ink disabled:opacity-60">
         <Send size={16} /> Evaluate Feedback

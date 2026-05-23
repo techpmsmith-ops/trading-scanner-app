@@ -23,6 +23,7 @@ from app.services.phase2 import (
     generate_weekly_predictions,
     latest_evaluation_report,
     latest_weight_row,
+    regenerate_current_week_predictions,
 )
 
 router = APIRouter(prefix="/phase2", tags=["phase2"], dependencies=[Depends(get_current_user)])
@@ -57,6 +58,14 @@ def create_predictions(db: Session = Depends(get_db), _admin=Depends(get_current
     rows = generate_weekly_predictions(db)
     if rows:
         send_alerts(db, "weekly_predictions", "Weekly prediction tracking:\n" + "\n".join([f"{row.symbol}: {row.direction} ({row.confidence:.0%})" for row in rows]))
+    return rows
+
+
+@router.post("/predictions/regenerate-current-week", response_model=list[WeeklyPredictionRead])
+def regenerate_predictions(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    rows = regenerate_current_week_predictions(db)
+    if rows:
+        send_alerts(db, "weekly_predictions", "Weekly predictions regenerated for the current market week:\n" + "\n".join([f"{row.symbol}: {row.direction} ({row.confidence:.0%})" for row in rows]))
     return rows
 
 

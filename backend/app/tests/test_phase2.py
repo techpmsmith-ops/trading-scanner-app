@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from app.models import PriceBar, ScanResult, ScanRun, Ticker, WeeklyPrediction
-from app.services.phase2 import adjust_scoring_weights, build_weekly_evaluation_report, generate_daily_top_five, generate_weekly_predictions
+from app.services.phase2 import adjust_scoring_weights, build_weekly_evaluation_report, current_week_bounds, generate_daily_top_five, generate_weekly_predictions, regenerate_current_week_predictions
 
 
 def test_daily_top_five_generates_from_latest_scan(db_session):
@@ -42,6 +42,19 @@ def test_weekly_predictions_create_tracked_symbols(db_session):
     symbols = {row.symbol for row in rows}
     assert {"INTC", "NVDA", "AMD", "IONQ", "NVTS"}.issubset(symbols)
     assert all(row.status == "pending" for row in rows)
+    assert all((row.week_end - row.week_start).days == 4 for row in rows)
+
+
+def test_regenerate_current_week_replaces_pending_predictions(db_session):
+    rows = generate_weekly_predictions(db_session)
+    assert len(rows) == 5
+
+    regenerated = regenerate_current_week_predictions(db_session)
+
+    assert len(regenerated) == 5
+    assert {row.symbol for row in regenerated} == {"INTC", "NVDA", "AMD", "IONQ", "NVTS"}
+    assert all(row.week_start == current_week_bounds()[0] for row in regenerated)
+    assert all((row.week_end - row.week_start).days == 4 for row in regenerated)
 
 
 def test_feedback_adjusts_weight_bounds(db_session):

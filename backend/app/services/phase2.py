@@ -127,6 +127,15 @@ def generate_weekly_predictions(db: Session) -> list[WeeklyPrediction]:
     return rows
 
 
+def regenerate_current_week_predictions(db: Session) -> list[WeeklyPrediction]:
+    week_start, _week_end = current_week_bounds()
+    pending = db.query(WeeklyPrediction).filter(WeeklyPrediction.week_start == week_start, WeeklyPrediction.status == "pending").all()
+    for row in pending:
+        db.delete(row)
+    db.commit()
+    return generate_weekly_predictions(db)
+
+
 def evaluate_weekly_predictions(db: Session) -> list[WeeklyPrediction]:
     pending = db.query(WeeklyPrediction).filter(WeeklyPrediction.status == "pending", WeeklyPrediction.week_end <= date.today()).all()
     evaluated: list[WeeklyPrediction] = []
