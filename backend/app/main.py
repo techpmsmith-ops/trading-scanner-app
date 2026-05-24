@@ -9,6 +9,7 @@ from app.api import auth, backtests, data, journal, performance, phase2, scanner
 from app.config import ALLOWED_ORIGINS, APP_ENV, AUTO_CREATE_TABLES, DATABASE_URL, DEBUG, DEFAULT_UNIVERSE, validate_runtime_config
 from app.database import SessionLocal, init_db
 from app.services.logging import log_event, log_exception
+from app.services.phase2 import run_morning_phase2_pipeline
 from app.services.scanner_engine import ScannerAlreadyRunning, ensure_default_universe, run_scanner
 
 logging.basicConfig(level=logging.INFO)
@@ -71,7 +72,7 @@ def on_startup():
     finally:
         db.close()
     if not scheduler.running:
-        scheduler.add_job(scheduled_scan, "cron", hour=18, minute=0, id="daily_eod_scan", replace_existing=True)
+        scheduler.add_job(scheduled_morning_pipeline, "cron", hour=7, minute=0, id="daily_premarket_pipeline", replace_existing=True)
         scheduler.start()
 
 
@@ -94,5 +95,22 @@ def scheduled_scan():
         log_event("scheduled_scan_skipped", reason="scanner_already_running")
     except Exception:
         log_exception("scheduled_scan_failed")
+    finally:
+        db.close()
+
+
+def scheduled_morning_pipeline():
+    db = SessionLocal()
+    try:
+        scan_run = run_scanner(db)
+        if scan_run.status in {"completed", "partial_success"} and scan_run.result_count > 0:
+            summary = run_morning_phase2_pipeline(db, scan_run)
+            log_event("morning_phase2_pipeline_completed", **summary)
+        else:
+            log_event("morning_phase2_pipeline_skipped", scan_run_id=scan_run.id, status=scan_run.status)
+    except ScannerAlreadyRunning:
+        log_event("morning_phase2_pipeline_skipped", reason="scanner_already_running")
+    except Exception:
+        log_exception("morning_phase2_pipeline_failed")
     finally:
         db.close()

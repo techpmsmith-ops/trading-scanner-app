@@ -346,6 +346,27 @@ class Phase2Dashboard(BaseModel):
     prediction_symbols: list[str]
 
 
+class FocusExplainRequest(BaseModel):
+    question: str | None = None
+
+
+class FocusExplainResponse(BaseModel):
+    symbol: str
+    explanation: str
+    disclaimer: str
+
+
+class FocusExplanationContext(BaseModel):
+    symbol: str
+    latest_analysis: FocusGroupAnalysisRead | None
+    weekly_predictions: list[WeeklyPredictionRead]
+    profile: FocusStockProfileRead | None
+    score_components: dict[str, Any]
+    why_this_rating: dict[str, Any]
+    recent_news_summary: dict[str, Any]
+    disclaimer: str
+
+
 class BacktestRunRequest(BaseModel):
     symbols: list[str] = Field(..., min_length=1, max_length=10)
     timeframe: Literal["daily", "weekly", "monthly"] = "daily"

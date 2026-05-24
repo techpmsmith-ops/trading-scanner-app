@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Disclaimer } from "@/components/Disclaimer";
 import { EmptyState } from "@/components/EmptyState";
 import { Phase2Actions } from "@/components/Phase2Actions";
@@ -42,7 +43,7 @@ export default async function SignalsPage() {
                   <div key={item.id} className="rounded-md border border-border bg-panelSoft p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-lg font-semibold">{item.symbol}</h3>
+                        <Link href={`/focus/${item.symbol}`} className="text-lg font-semibold hover:text-positive">{item.symbol}</Link>
                         <p className="mt-1 text-xs text-muted">{item.analysis_date}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -78,6 +79,18 @@ export default async function SignalsPage() {
                     <div className="mt-4 flex flex-wrap gap-1">
                       {(item.relevance.tags || []).map((tag: string) => <StatusPill key={tag} value={tag} />)}
                     </div>
+                    <details className="mt-4 rounded-md border border-border bg-panel p-3">
+                      <summary className="cursor-pointer text-sm font-semibold">Why this rating?</summary>
+                      <div className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-2">
+                        <div>Bias: {item.bias} from setup, movement, volume, sentiment, and risk.</div>
+                        <div>Confidence: {number(item.confidence * 100, 0)}% after risk and catalyst adjustments.</div>
+                        <div>Risk: {item.risk_level}; risk flags and ATR influence this.</div>
+                        <div>Levels: {item.entry_zone || "-"} / {item.stop_loss_area || "-"} / {item.target_zone || "-"}</div>
+                        <div>RSI: {number(item.indicators.rsi_14)} | MACD: {number(item.indicators.macd_histogram)}</div>
+                        <div>Sentiment: {item.news_sentiment_label || "-"} ({number(item.news_sentiment_score, 3)})</div>
+                      </div>
+                    </details>
+                    <Link href={`/focus/${item.symbol}`} className="mt-3 inline-block text-sm text-positive hover:underline">Open full analysis</Link>
                   </div>
                 ))}
               </div>

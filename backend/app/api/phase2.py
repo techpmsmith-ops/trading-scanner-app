@@ -9,6 +9,9 @@ from app.schemas import (
     AlertSubscriptionRead,
     AlertSubscriptionUpdate,
     AlertTestResponse,
+    FocusExplainRequest,
+    FocusExplainResponse,
+    FocusExplanationContext,
     DailyRecommendationRead,
     FocusGroupAnalysisRead,
     Phase2Dashboard,
@@ -24,10 +27,13 @@ from app.services.phase2 import (
     generate_focus_group_analysis,
     generate_weekly_predictions,
     focus_profiles,
+    explain_focus_analysis,
+    focus_explanation_context,
     latest_focus_group,
     latest_evaluation_report,
     latest_weight_row,
     regenerate_current_week_predictions,
+    run_morning_phase2_pipeline,
 )
 
 router = APIRouter(prefix="/phase2", tags=["phase2"], dependencies=[Depends(get_current_user)])
@@ -54,6 +60,21 @@ def create_focus_group_analysis(db: Session = Depends(get_db), _admin=Depends(ge
 @router.get("/focus/latest", response_model=list[FocusGroupAnalysisRead])
 def get_focus_group_analysis(db: Session = Depends(get_db)):
     return latest_focus_group(db)
+
+
+@router.post("/morning-pipeline")
+def run_morning_pipeline(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    return run_morning_phase2_pipeline(db)
+
+
+@router.get("/focus/{symbol}/explanation-context", response_model=FocusExplanationContext)
+def get_focus_explanation_context(symbol: str, db: Session = Depends(get_db)):
+    return focus_explanation_context(db, symbol)
+
+
+@router.post("/focus/{symbol}/explain", response_model=FocusExplainResponse)
+def explain_focus(symbol: str, payload: FocusExplainRequest, db: Session = Depends(get_db)):
+    return explain_focus_analysis(db, symbol, payload.question)
 
 
 @router.post("/recommendations/generate", response_model=list[DailyRecommendationRead])

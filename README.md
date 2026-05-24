@@ -182,6 +182,9 @@ The backend also schedules a daily end-of-day scan at 6:00 PM America/New_York w
 - `GET /phase2/dashboard`
 - `POST /phase2/focus/generate`
 - `GET /phase2/focus/latest`
+- `GET /phase2/focus/{symbol}/explanation-context`
+- `POST /phase2/focus/{symbol}/explain`
+- `POST /phase2/morning-pipeline`
 - `POST /phase2/recommendations/generate`
 - `GET /phase2/recommendations/latest`
 - `POST /phase2/predictions/generate`
@@ -520,6 +523,8 @@ Phase 2 adds richer decision-support features while keeping the app private and 
   - Tier 3 feedback loop that stores stock-specific behavior profiles and adjusts future component weights.
   - Tier 4 broader market discovery that surfaces only exceptional high-confidence scanner candidates when available.
 - Daily Focus Group summaries with bias, confidence, technical setup, catalyst, risk level, watch action, price zones, support/resistance, relevance tags, and news sentiment.
+- Premarket pipeline scheduled for 7:00 AM America/New_York. After the scan completes, it generates Focus Group analysis, broader discovery top-five rows, and daily alert delivery.
+- Dedicated Focus Group stock pages at `/focus/{symbol}` with charts, technical context, prediction history, accuracy profile, scoring transparency, and a grounded explanation assistant.
 - Feedback loop that evaluates completed weekly predictions against actual weekly price movement and nudges scanner component weights within a bounded `0.8x` to `1.2x` range.
 - End-of-week evaluation reports showing prediction accuracy, win/loss ratio, false positives, indicator effectiveness, news-sentiment alignment, and SPY/QQQ market conditions.
 - Optional Telegram and SMS alerts for top-five and weekly prediction summaries.

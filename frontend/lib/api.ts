@@ -187,6 +187,23 @@ export type FocusStockProfile = {
   updated_at: string;
 };
 
+export type FocusExplanationContext = {
+  symbol: string;
+  latest_analysis: FocusGroupAnalysis | null;
+  weekly_predictions: WeeklyPrediction[];
+  profile: FocusStockProfile | null;
+  score_components: Record<string, any>;
+  why_this_rating: Record<string, any>;
+  recent_news_summary: Record<string, any>;
+  disclaimer: string;
+};
+
+export type FocusExplainResponse = {
+  symbol: string;
+  explanation: string;
+  disclaimer: string;
+};
+
 export type BacktestMetrics = {
   total_return_pct: number;
   annualized_volatility_pct: number;

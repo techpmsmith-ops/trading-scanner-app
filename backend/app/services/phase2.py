@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.config import FOCUS_GROUP_SYMBOLS, SETUP_DISCLAIMER
 from app.models import DailyRecommendation, FocusGroupAnalysis, FocusStockProfile, PriceBar, ScanResult, ScanRun, ScoringWeight, Ticker, WeeklyEvaluationReport, WeeklyPrediction
+from app.services.alerts import send_alerts
 from app.services.market_data import fetch_daily_bars, upsert_price_bars
 from app.services.news_sentiment import score_symbol_news
 from app.services.scoring import DEFAULT_COMPONENT_WEIGHTS
@@ -42,7 +43,7 @@ def latest_scan(db: Session) -> ScanRun | None:
     return db.query(ScanRun).order_by(ScanRun.started_at.desc()).first()
 
 
-def generate_daily_top_five(db: Session) -> list[DailyRecommendation]:
+def generate_daily_top_five(db: Session, force: bool = False) -> list[DailyRecommendation]:
     run = latest_scan(db)
     if not run:
         return []
@@ -52,8 +53,12 @@ def generate_daily_top_five(db: Session) -> list[DailyRecommendation]:
         .order_by(DailyRecommendation.rank.asc())
         .all()
     )
-    if existing:
+    if existing and not force:
         return existing
+    if existing and force:
+        for row in existing:
+            db.delete(row)
+        db.commit()
 
     pool = (
         db.query(ScanResult)
@@ -98,7 +103,7 @@ def generate_daily_top_five(db: Session) -> list[DailyRecommendation]:
     return rows
 
 
-def generate_focus_group_analysis(db: Session) -> list[FocusGroupAnalysis]:
+def generate_focus_group_analysis(db: Session, force: bool = False) -> list[FocusGroupAnalysis]:
     today = date.today()
     existing = (
         db.query(FocusGroupAnalysis)
@@ -106,8 +111,12 @@ def generate_focus_group_analysis(db: Session) -> list[FocusGroupAnalysis]:
         .order_by(FocusGroupAnalysis.symbol.asc())
         .all()
     )
-    if existing:
+    if existing and not force:
         return existing
+    if existing and force:
+        for row in existing:
+            db.delete(row)
+        db.commit()
 
     run = latest_scan(db)
     scan_results = {}
@@ -166,6 +175,84 @@ def generate_focus_group_analysis(db: Session) -> list[FocusGroupAnalysis]:
     for row in rows:
         db.refresh(row)
     return rows
+
+
+def run_morning_phase2_pipeline(db: Session, scan_run: ScanRun | None = None) -> dict:
+    focus_rows = generate_focus_group_analysis(db, force=True)
+    top_five = generate_daily_top_five(db, force=True)
+    message = _morning_alert_message(focus_rows, top_five)
+    alert_results = send_alerts(db, "daily_top_five", message) if message else []
+    return {
+        "scan_run_id": scan_run.id if scan_run else None,
+        "focus_count": len(focus_rows),
+        "top_five_count": len(top_five),
+        "alerts": alert_results,
+    }
+
+
+def focus_explanation_context(db: Session, symbol: str) -> dict:
+    normalized = symbol.upper().strip()
+    analysis = (
+        db.query(FocusGroupAnalysis)
+        .filter(FocusGroupAnalysis.symbol == normalized)
+        .order_by(FocusGroupAnalysis.analysis_date.desc(), FocusGroupAnalysis.created_at.desc())
+        .first()
+    )
+    predictions = (
+        db.query(WeeklyPrediction)
+        .filter(WeeklyPrediction.symbol == normalized)
+        .order_by(WeeklyPrediction.week_start.desc())
+        .limit(12)
+        .all()
+    )
+    profile = db.query(FocusStockProfile).filter(FocusStockProfile.symbol == normalized).one_or_none()
+    latest_prediction = predictions[0] if predictions else None
+    result = analysis.scan_result if analysis else latest_prediction.scan_result if latest_prediction else None
+    news_summary = {
+        "sentiment_score": analysis.news_sentiment_score if analysis else latest_prediction.news_sentiment_score if latest_prediction else None,
+        "sentiment_label": analysis.news_sentiment_label if analysis else latest_prediction.news_sentiment_label if latest_prediction else None,
+        "headline_count": (analysis.catalysts or {}).get("recent_news") if analysis else None,
+    }
+    return {
+        "symbol": normalized,
+        "latest_analysis": analysis,
+        "weekly_predictions": predictions,
+        "profile": profile,
+        "score_components": _score_breakdown(analysis, result),
+        "why_this_rating": _why_this_rating(analysis, result, latest_prediction),
+        "recent_news_summary": news_summary,
+        "disclaimer": "Educational decision-support only. This is not financial advice or a trade recommendation.",
+    }
+
+
+def explain_focus_analysis(db: Session, symbol: str, question: str | None = None) -> dict:
+    context = focus_explanation_context(db, symbol)
+    analysis = context["latest_analysis"]
+    if not analysis:
+        return {
+            "symbol": context["symbol"],
+            "explanation": f"No Focus Group analysis is stored yet for {context['symbol']}. Generate Focus Group analysis first.",
+            "disclaimer": context["disclaimer"],
+        }
+    why = context["why_this_rating"]
+    components = context["score_components"]
+    prediction = context["weekly_predictions"][0] if context["weekly_predictions"] else None
+    question_note = f" Question focus: {question.strip()}" if question else ""
+    explanation = (
+        f"{analysis.symbol} is currently rated {analysis.bias} with {analysis.confidence:.0%} confidence and {analysis.risk_level} risk.{question_note} "
+        f"The rating is grounded in a scan score of {components.get('scan_score', 'unavailable')}, setup types {', '.join(why.get('setup_types') or ['none'])}, "
+        f"risk flags {', '.join(why.get('risk_flags') or ['none'])}, daily move {analysis.daily_move_pct}%, weekly move {analysis.weekly_move_pct}%, "
+        f"relative volume {analysis.relative_volume}x, volume spike {analysis.volume_spike}, RSI {why.get('rsi_14')}, MACD histogram {why.get('macd_histogram')}, "
+        f"support {why.get('support')}, resistance {why.get('resistance')}, and news sentiment {analysis.news_sentiment_label} ({analysis.news_sentiment_score}). "
+        f"The watch action is: {analysis.suggested_watch_action} Entry/stop/target zones are {analysis.entry_zone or '-'}, {analysis.stop_loss_area or '-'}, and {analysis.target_zone or '-'}. "
+    )
+    if prediction:
+        explanation += (
+            f"The latest weekly prediction is {prediction.direction} with expected range "
+            f"{prediction.predicted_range_low or '-'} to {prediction.predicted_range_high or '-'} and {prediction.confidence:.0%} confidence. "
+        )
+    explanation += "This is a grounded explanation of stored scanner data only, not a trade recommendation."
+    return {"symbol": analysis.symbol, "explanation": explanation, "disclaimer": context["disclaimer"]}
 
 
 def current_week_bounds(today: date | None = None) -> tuple[date, date]:
@@ -596,6 +683,92 @@ def _focus_summary(symbol: str, bias: str, confidence: float, setup: str, cataly
         f"Technical setup: {setup}. Key catalyst: {catalyst} Risk level: {risk_level}. "
         "This is focus-group research, not a trade recommendation."
     )
+
+
+def _morning_alert_message(focus_rows: list[FocusGroupAnalysis], top_five: list[DailyRecommendation]) -> str:
+    if not focus_rows and not top_five:
+        return ""
+    focus_lines = [
+        f"{row.symbol}: {row.bias} ({row.confidence:.0%}), {row.risk_level} risk, {row.suggested_watch_action}"
+        for row in focus_rows[:10]
+    ]
+    top_lines = [
+        f"{row.rank}. {row.symbol} {row.score_total}/100 - {', '.join(row.setup_types) or 'No setup label'}"
+        for row in top_five
+    ]
+    return (
+        "Premarket Trading Scanner Briefing\n"
+        "Educational decision-support only; not financial advice.\n\n"
+        "Focus Group:\n"
+        + ("\n".join(focus_lines) if focus_lines else "No Focus Group rows generated.")
+        + "\n\nBroader discovery top five:\n"
+        + ("\n".join(top_lines) if top_lines else "No broader discovery candidates generated.")
+    )
+
+
+def _score_breakdown(analysis: FocusGroupAnalysis | None, result: ScanResult | None) -> dict:
+    indicators = analysis.indicators if analysis else {}
+    sentiment_score = analysis.news_sentiment_score if analysis and analysis.news_sentiment_score is not None else 0
+    risk_penalty = len(result.risk_flags or []) * 4 if result else 0
+    return {
+        "scan_score": result.score_total if result else None,
+        "trend_component": result.score_trend if result else 0,
+        "momentum_component": result.score_momentum if result else 0,
+        "volume_component": result.score_volume if result else 0,
+        "sentiment_component": round(max(-10, min(10, sentiment_score * 10)), 2),
+        "setup_quality_component": result.score_setup_quality if result else 0,
+        "risk_component": result.score_risk if result else 0,
+        "risk_penalty": risk_penalty,
+        "final_confidence_score": round((analysis.confidence if analysis else 0) * 100, 0),
+        "rsi_14": indicators.get("rsi_14"),
+        "macd_histogram": indicators.get("macd_histogram"),
+        "ema_20": indicators.get("ema_20"),
+        "sma_50": indicators.get("sma_50"),
+        "sma_200": indicators.get("sma_200"),
+    }
+
+
+def _why_this_rating(analysis: FocusGroupAnalysis | None, result: ScanResult | None, prediction: WeeklyPrediction | None) -> dict:
+    if not analysis:
+        return {"summary": "No Focus Group analysis is stored yet."}
+    indicators = analysis.indicators or {}
+    levels = analysis.support_resistance or {}
+    return {
+        "bias": f"{analysis.bias} because score, recent movement, volume, risk flags, and sentiment were combined with bounded rules.",
+        "confidence": f"{analysis.confidence:.0%} confidence reflects distance from neutral scan score, volume spike status, sentiment, and risk flags.",
+        "risk_level": f"{analysis.risk_level} risk reflects scanner risk flags and volatility/ATR where available.",
+        "watch_action": analysis.suggested_watch_action,
+        "zones": {
+            "entry": analysis.entry_zone,
+            "stop": analysis.stop_loss_area,
+            "target": analysis.target_zone,
+            "support": levels.get("support"),
+            "resistance": levels.get("resistance"),
+        },
+        "scan_score": result.score_total if result else None,
+        "setup_types": result.setup_types if result else [],
+        "risk_flags": result.risk_flags if result else [],
+        "daily_move_pct": analysis.daily_move_pct,
+        "weekly_move_pct": analysis.weekly_move_pct,
+        "relative_volume": analysis.relative_volume,
+        "volume_spike": analysis.volume_spike,
+        "rsi_14": indicators.get("rsi_14"),
+        "macd_histogram": indicators.get("macd_histogram"),
+        "moving_averages": {
+            "ema_20": indicators.get("ema_20"),
+            "sma_50": indicators.get("sma_50"),
+            "sma_200": indicators.get("sma_200"),
+        },
+        "news_sentiment_score": analysis.news_sentiment_score,
+        "news_sentiment_label": analysis.news_sentiment_label,
+        "relevance": analysis.relevance,
+        "weekly_prediction": {
+            "direction": prediction.direction,
+            "confidence": prediction.confidence,
+            "range_low": prediction.predicted_range_low,
+            "range_high": prediction.predicted_range_high,
+        } if prediction else None,
+    }
 
 
 def _predicted_range(metrics: dict, predicted_return_pct: float) -> tuple[float | None, float | None]:
