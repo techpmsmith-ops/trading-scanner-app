@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Disclaimer } from "@/components/Disclaimer";
+import { EmptyState } from "@/components/EmptyState";
 import { FocusExplainPanel } from "@/components/FocusExplainPanel";
 import { PriceChart } from "@/components/PriceChart";
 import { StatusPill } from "@/components/StatusPill";
@@ -10,21 +10,41 @@ import { authHeaders } from "@/lib/server-auth";
 export default async function FocusSymbolPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol } = await params;
   const headers = await authHeaders();
-  let context: FocusExplanationContext;
+  let context: FocusExplanationContext | null = null;
   try {
     context = await api<FocusExplanationContext>(`/phase2/focus/${symbol}/explanation-context`, { headers });
   } catch {
-    notFound();
+    context = null;
   }
-  const analysis = context.latest_analysis;
+  const normalizedSymbol = context?.symbol || symbol.toUpperCase();
+  const analysis = context?.latest_analysis;
   let bars: PriceBar[] = [];
   try {
-    bars = await api<PriceBar[]>(`/data/${context.symbol}`, { headers });
+    bars = await api<PriceBar[]>(`/data/${normalizedSymbol}`, { headers });
   } catch {
     bars = [];
   }
-  if (!analysis) notFound();
-  const latestPrediction = context.weekly_predictions[0];
+  const latestPrediction = context?.weekly_predictions[0];
+
+  if (!context || !analysis) {
+    return (
+      <div className="space-y-6">
+        <Disclaimer />
+        <div>
+          <Link href="/signals" className="text-sm text-muted hover:text-ink">Back to Signals</Link>
+          <h1 className="mt-2 text-2xl font-semibold">{normalizedSymbol} Focus Analysis</h1>
+          <p className="mt-2 max-w-3xl text-sm text-muted">
+            Focus detail pages render after the backend has stored a Focus Group analysis for the symbol.
+          </p>
+        </div>
+        {bars.length ? <PriceChart bars={bars} /> : null}
+        <EmptyState
+          title="No Focus Group analysis yet"
+          body="Go to Signals and click Focus Group to generate the latest daily analysis, then reopen this page."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
