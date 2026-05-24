@@ -225,6 +225,7 @@ class WeeklyPredictionRead(ORMModel):
     end_price: float | None
     actual_return_pct: float | None
     outcome: str | None
+    outcome_reason: str | None
     false_positive: bool
     news_sentiment_score: float | None
     news_sentiment_label: str | None

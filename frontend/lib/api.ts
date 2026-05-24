@@ -78,6 +78,10 @@ export type WeeklyPrediction = {
   end_price: number | null;
   actual_return_pct: number | null;
   outcome: string | null;
+  outcome_reason: string | null;
+  false_positive: boolean;
+  news_sentiment_score: number | null;
+  news_sentiment_label: string | null;
   created_at: string;
   evaluated_at: string | null;
 };

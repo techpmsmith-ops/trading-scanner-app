@@ -158,6 +158,7 @@ def evaluate_weekly_predictions(db: Session) -> list[WeeklyPrediction]:
         prediction.end_price = end_price
         prediction.actual_return_pct = round(actual, 2)
         prediction.outcome = _outcome(prediction.direction, actual)
+        prediction.outcome_reason = _outcome_reason(prediction.direction, actual)
         prediction.false_positive = prediction.outcome == "miss" and prediction.direction in {"bullish", "bearish"} and prediction.confidence >= 0.5
         prediction.news_sentiment_score = sentiment["score"]
         prediction.news_sentiment_label = sentiment["label"]
@@ -370,3 +371,18 @@ def _outcome(direction: str, actual_return_pct: float) -> str:
     if direction == "bullish":
         return "hit" if actual_return_pct > 0 else "miss"
     return "hit" if actual_return_pct < 0 else "miss"
+
+
+def _outcome_reason(direction: str, actual_return_pct: float) -> str:
+    rounded = round(actual_return_pct, 2)
+    if direction == "neutral":
+        if abs(actual_return_pct) < 1:
+            return f"Neutral hit because actual weekly move was {rounded}% within the +/-1% neutral band."
+        return f"Neutral missed because actual weekly move was {rounded}%, outside the +/-1% neutral band."
+    if direction == "bullish":
+        if actual_return_pct > 0:
+            return f"Bullish hit because actual weekly return was positive at {rounded}%."
+        return f"Bullish missed because actual weekly return was negative at {rounded}%."
+    if actual_return_pct < 0:
+        return f"Bearish hit because actual weekly return was negative at {rounded}%."
+    return f"Bearish missed because actual weekly return was positive at {rounded}%."

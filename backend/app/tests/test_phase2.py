@@ -96,6 +96,7 @@ def test_weekly_report_tracks_false_positive_and_sentiment(db_session):
         status="evaluated",
         actual_return_pct=-2,
         outcome="miss",
+        outcome_reason="Bullish missed because actual weekly return was negative at -2%.",
         false_positive=True,
         news_sentiment_score=0.5,
         news_sentiment_label="positive",

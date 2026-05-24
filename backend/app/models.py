@@ -139,6 +139,7 @@ class WeeklyPrediction(Base):
     end_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     actual_return_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    outcome_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     false_positive: Mapped[bool] = mapped_column(Boolean, default=False)
     news_sentiment_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     news_sentiment_label: Mapped[str | None] = mapped_column(String(20), nullable=True)

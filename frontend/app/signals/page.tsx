@@ -63,7 +63,7 @@ export default async function SignalsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[920px] text-sm">
                   <thead className="bg-panelSoft text-left text-xs uppercase text-muted">
-                    <tr><th className="px-4 py-3">Symbol</th><th>Week</th><th>Direction</th><th>Predicted</th><th>Confidence</th><th>Score</th><th>Actual</th><th>Outcome</th><th>Rationale</th></tr>
+                    <tr><th className="px-4 py-3">Symbol</th><th>Week</th><th>Direction</th><th>Predicted</th><th>Confidence</th><th>Score</th><th>Actual</th><th>Outcome</th><th>Reason</th><th>Rationale</th></tr>
                   </thead>
                   <tbody>
                     {dashboard.weekly_predictions.map((item) => (
@@ -76,6 +76,7 @@ export default async function SignalsPage() {
                         <td>{item.score_total}</td>
                         <td>{item.actual_return_pct === null ? "-" : `${number(item.actual_return_pct)}%`}</td>
                         <td>{item.outcome || item.status}</td>
+                        <td className="max-w-xs text-muted">{item.outcome_reason || "-"}</td>
                         <td className="max-w-md text-muted">{item.rationale}</td>
                       </tr>
                     ))}

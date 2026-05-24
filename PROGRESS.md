@@ -305,6 +305,21 @@ The new migration is:
 backend/alembic/versions/20260523_0004_weekly_evaluation_reports.py
 ```
 
+### Prediction Outcome Reasons - 2026-05-24
+
+Added explicit outcome reasons for weekly prediction evaluation:
+
+- `weekly_predictions.outcome_reason`
+- Signals table shows a **Reason** column beside outcome
+- Neutral hits/misses now explain the +/-1% neutral band
+- Bullish/bearish hits/misses explain whether actual weekly return aligned with direction
+
+New migration:
+
+```text
+backend/alembic/versions/20260524_0005_prediction_outcome_reason.py
+```
+
 ### Render Fix Needed
 
 In Render, open `trading-scanner-backend` and verify:
