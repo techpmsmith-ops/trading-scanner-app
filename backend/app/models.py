@@ -130,9 +130,18 @@ class WeeklyPrediction(Base):
     scan_result_id: Mapped[int | None] = mapped_column(ForeignKey("scan_results.id"), nullable=True)
     direction: Mapped[str] = mapped_column(String(20))
     predicted_return_pct: Mapped[float] = mapped_column(Float)
+    predicted_range_low: Mapped[float | None] = mapped_column(Float, nullable=True)
+    predicted_range_high: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bullish_probability: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bearish_probability: Mapped[float | None] = mapped_column(Float, nullable=True)
     confidence: Mapped[float] = mapped_column(Float)
     score_total: Mapped[int] = mapped_column(Integer, default=0)
     component_scores: Mapped[dict] = mapped_column(JSON, default=dict)
+    key_drivers: Mapped[list] = mapped_column(JSON, default=list)
+    main_risks: Mapped[list] = mapped_column(JSON, default=list)
+    technical_setup: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sentiment_impact: Mapped[str | None] = mapped_column(Text, nullable=True)
+    suggested_trade_plan: Mapped[str | None] = mapped_column(Text, nullable=True)
     rationale: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="pending")
     start_price: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -140,6 +149,9 @@ class WeeklyPrediction(Base):
     actual_return_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)
     outcome_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    range_hit: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    volume_confirmation: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    sector_relative_behavior: Mapped[str | None] = mapped_column(String(80), nullable=True)
     false_positive: Mapped[bool] = mapped_column(Boolean, default=False)
     news_sentiment_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     news_sentiment_label: Mapped[str | None] = mapped_column(String(20), nullable=True)
@@ -148,6 +160,51 @@ class WeeklyPrediction(Base):
 
     scan_result = relationship("ScanResult")
     scan_run = relationship("ScanRun")
+
+
+class FocusGroupAnalysis(Base):
+    __tablename__ = "focus_group_analyses"
+    __table_args__ = (UniqueConstraint("analysis_date", "symbol", name="uq_focus_group_analyses_date_symbol"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    analysis_date: Mapped[date] = mapped_column(Date, index=True)
+    symbol: Mapped[str] = mapped_column(String(16), index=True)
+    scan_run_id: Mapped[int | None] = mapped_column(ForeignKey("scan_runs.id"), nullable=True)
+    scan_result_id: Mapped[int | None] = mapped_column(ForeignKey("scan_results.id"), nullable=True)
+    bias: Mapped[str] = mapped_column(String(20))
+    confidence: Mapped[float] = mapped_column(Float)
+    current_technical_setup: Mapped[str] = mapped_column(Text)
+    key_catalyst: Mapped[str] = mapped_column(Text)
+    risk_level: Mapped[str] = mapped_column(String(20))
+    suggested_watch_action: Mapped[str] = mapped_column(Text)
+    entry_zone: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    stop_loss_area: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    target_zone: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    daily_move_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    weekly_move_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    volume_spike: Mapped[bool] = mapped_column(Boolean, default=False)
+    relative_volume: Mapped[float | None] = mapped_column(Float, nullable=True)
+    indicators: Mapped[dict] = mapped_column(JSON, default=dict)
+    support_resistance: Mapped[dict] = mapped_column(JSON, default=dict)
+    catalysts: Mapped[dict] = mapped_column(JSON, default=dict)
+    relevance: Mapped[dict] = mapped_column(JSON, default=dict)
+    news_sentiment_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    news_sentiment_label: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    summary: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    scan_result = relationship("ScanResult")
+    scan_run = relationship("ScanRun")
+
+
+class FocusStockProfile(Base, TimestampMixin):
+    __tablename__ = "focus_stock_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    symbol: Mapped[str] = mapped_column(String(16), unique=True, index=True)
+    behavior_profile: Mapped[dict] = mapped_column(JSON, default=dict)
+    indicator_weights: Mapped[dict] = mapped_column(JSON, default=dict)
+    accuracy_stats: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
 class ScoringWeight(Base):

@@ -216,9 +216,18 @@ class WeeklyPredictionRead(ORMModel):
     scan_result_id: int | None
     direction: str
     predicted_return_pct: float
+    predicted_range_low: float | None
+    predicted_range_high: float | None
+    bullish_probability: float | None
+    bearish_probability: float | None
     confidence: float
     score_total: int
     component_scores: dict[str, Any]
+    key_drivers: list[str] | None = []
+    main_risks: list[str] | None = []
+    technical_setup: str | None
+    sentiment_impact: str | None
+    suggested_trade_plan: str | None
     rationale: str
     status: str
     start_price: float | None
@@ -226,6 +235,9 @@ class WeeklyPredictionRead(ORMModel):
     actual_return_pct: float | None
     outcome: str | None
     outcome_reason: str | None
+    range_hit: bool | None
+    volume_confirmation: str | None
+    sector_relative_behavior: str | None
     false_positive: bool
     news_sentiment_score: float | None
     news_sentiment_label: str | None
@@ -259,6 +271,45 @@ class WeeklyEvaluationReportRead(ORMModel):
     created_at: datetime
 
 
+class FocusGroupAnalysisRead(ORMModel):
+    id: int
+    analysis_date: date
+    symbol: str
+    scan_run_id: int | None
+    scan_result_id: int | None
+    bias: str
+    confidence: float
+    current_technical_setup: str
+    key_catalyst: str
+    risk_level: str
+    suggested_watch_action: str
+    entry_zone: str | None
+    stop_loss_area: str | None
+    target_zone: str | None
+    daily_move_pct: float | None
+    weekly_move_pct: float | None
+    volume_spike: bool
+    relative_volume: float | None
+    indicators: dict[str, Any]
+    support_resistance: dict[str, Any]
+    catalysts: dict[str, Any]
+    relevance: dict[str, Any]
+    news_sentiment_score: float | None
+    news_sentiment_label: str | None
+    summary: str
+    created_at: datetime
+
+
+class FocusStockProfileRead(ORMModel):
+    id: int
+    symbol: str
+    behavior_profile: dict[str, Any]
+    indicator_weights: dict[str, Any]
+    accuracy_stats: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+
 class AlertSubscriptionCreate(BaseModel):
     channel: Literal["telegram", "sms"]
     destination_label: str | None = None
@@ -286,8 +337,92 @@ class AlertTestResponse(BaseModel):
 
 
 class Phase2Dashboard(BaseModel):
+    focus_group: list[FocusGroupAnalysisRead]
+    focus_profiles: list[FocusStockProfileRead]
     daily_top_five: list[DailyRecommendationRead]
     weekly_predictions: list[WeeklyPredictionRead]
     scoring_weights: ScoringWeightRead | None
     latest_evaluation: WeeklyEvaluationReportRead | None
     prediction_symbols: list[str]
+
+
+class BacktestRunRequest(BaseModel):
+    symbols: list[str] = Field(..., min_length=1, max_length=10)
+    timeframe: Literal["daily", "weekly", "monthly"] = "daily"
+    strategies: list[
+        Literal[
+            "trend_following",
+            "momentum_strength",
+            "breakout",
+            "mean_reversion",
+            "ai_composite",
+        ]
+    ] = ["trend_following", "momentum_strength", "breakout", "mean_reversion", "ai_composite"]
+    lookback_days: int = Field(756, ge=120, le=2500)
+    initial_capital: float = Field(10_000, gt=0, le=10_000_000)
+
+    @field_validator("symbols")
+    @classmethod
+    def normalize_symbols(cls, value: list[str]) -> list[str]:
+        symbols = []
+        for symbol in value:
+            normalized = symbol.strip().upper()
+            if normalized and normalized not in symbols:
+                symbols.append(normalized)
+        if not symbols:
+            raise ValueError("At least one symbol is required")
+        return symbols
+
+
+class BacktestStrategyInfo(BaseModel):
+    key: str
+    name: str
+
+
+class BacktestTrade(BaseModel):
+    entry_date: str
+    exit_date: str
+    entry_price: float
+    exit_price: float
+    return_pct: float
+    result: str
+
+
+class BacktestEquityPoint(BaseModel):
+    date: str
+    equity: float
+    benchmark_equity: float
+
+
+class BacktestMetrics(BaseModel):
+    total_return_pct: float
+    annualized_volatility_pct: float
+    sharpe_ratio: float
+    max_drawdown_pct: float
+    trade_count: int
+    win_rate_pct: float
+    average_trade_return_pct: float
+    profit_factor: float | None
+    final_equity: float
+
+
+class BacktestResult(BaseModel):
+    symbol: str
+    strategy: str | None = None
+    strategy_name: str | None = None
+    timeframe: str | None = None
+    metrics: BacktestMetrics | None = None
+    trades: list[BacktestTrade] = []
+    equity_curve: list[BacktestEquityPoint] = []
+    notes: str | None = None
+    error: str | None = None
+
+
+class BacktestResponse(BaseModel):
+    timeframe: str
+    initial_capital: float
+    symbols: list[str]
+    strategies: list[str]
+    results: list[BacktestResult]
+    comparison: list[BacktestResult]
+    disclaimer: str

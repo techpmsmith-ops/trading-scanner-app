@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.config import PHASE2_PREDICTION_SYMBOLS
+from app.config import FOCUS_GROUP_SYMBOLS
 from app.database import get_db
 from app.models import AlertSubscription, DailyRecommendation, WeeklyEvaluationReport, WeeklyPrediction
 from app.schemas import (
@@ -10,6 +10,7 @@ from app.schemas import (
     AlertSubscriptionUpdate,
     AlertTestResponse,
     DailyRecommendationRead,
+    FocusGroupAnalysisRead,
     Phase2Dashboard,
     ScoringWeightRead,
     WeeklyEvaluationReportRead,
@@ -20,7 +21,10 @@ from app.services.auth import get_current_admin, get_current_user
 from app.services.phase2 import (
     evaluate_weekly_predictions,
     generate_daily_top_five,
+    generate_focus_group_analysis,
     generate_weekly_predictions,
+    focus_profiles,
+    latest_focus_group,
     latest_evaluation_report,
     latest_weight_row,
     regenerate_current_week_predictions,
@@ -32,12 +36,24 @@ router = APIRouter(prefix="/phase2", tags=["phase2"], dependencies=[Depends(get_
 @router.get("/dashboard", response_model=Phase2Dashboard)
 def dashboard(db: Session = Depends(get_db)):
     return {
+        "focus_group": latest_focus_group(db),
+        "focus_profiles": focus_profiles(db),
         "daily_top_five": latest_daily_top_five(db),
         "weekly_predictions": latest_weekly_predictions(db),
         "scoring_weights": latest_weight_row(db),
         "latest_evaluation": latest_evaluation_report(db),
-        "prediction_symbols": PHASE2_PREDICTION_SYMBOLS,
+        "prediction_symbols": FOCUS_GROUP_SYMBOLS,
     }
+
+
+@router.post("/focus/generate", response_model=list[FocusGroupAnalysisRead])
+def create_focus_group_analysis(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    return generate_focus_group_analysis(db)
+
+
+@router.get("/focus/latest", response_model=list[FocusGroupAnalysisRead])
+def get_focus_group_analysis(db: Session = Depends(get_db)):
+    return latest_focus_group(db)
 
 
 @router.post("/recommendations/generate", response_model=list[DailyRecommendationRead])
@@ -138,6 +154,6 @@ def latest_weekly_predictions(db: Session):
     return (
         db.query(WeeklyPrediction)
         .order_by(WeeklyPrediction.week_start.desc(), WeeklyPrediction.symbol.asc())
-        .limit(len(PHASE2_PREDICTION_SYMBOLS))
+        .limit(len(FOCUS_GROUP_SYMBOLS))
         .all()
     )

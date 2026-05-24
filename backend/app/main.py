@@ -5,7 +5,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, data, journal, performance, phase2, scanner, tickers
+from app.api import auth, backtests, data, journal, performance, phase2, scanner, tickers
 from app.config import ALLOWED_ORIGINS, APP_ENV, AUTO_CREATE_TABLES, DATABASE_URL, DEBUG, DEFAULT_UNIVERSE, validate_runtime_config
 from app.database import SessionLocal, init_db
 from app.services.logging import log_event, log_exception
@@ -31,6 +31,7 @@ app.include_router(scanner.router)
 app.include_router(journal.router)
 app.include_router(performance.router)
 app.include_router(phase2.router)
+app.include_router(backtests.router)
 
 scheduler = BackgroundScheduler(timezone="America/New_York")
 

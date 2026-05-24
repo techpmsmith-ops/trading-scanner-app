@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, RefreshCw, RotateCcw, Send } from "lucide-react";
+import { Bell, Focus, RefreshCw, RotateCcw, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
@@ -28,6 +28,9 @@ export function Phase2Actions() {
     <div className="flex flex-wrap items-start gap-2">
       <button onClick={() => run("/phase2/recommendations/generate", "Daily top five")} disabled={Boolean(busy)} className="inline-flex items-center gap-2 bg-positive px-3 py-2 text-sm font-semibold text-[#07130d] disabled:opacity-60">
         <RefreshCw size={16} /> Top Five
+      </button>
+      <button onClick={() => run("/phase2/focus/generate", "Focus group analysis")} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-md border border-border bg-panel px-3 py-2 text-sm text-ink disabled:opacity-60">
+        <Focus size={16} /> Focus Group
       </button>
       <button onClick={() => run("/phase2/predictions/generate", "Weekly predictions")} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-md border border-border bg-panel px-3 py-2 text-sm text-ink disabled:opacity-60">
         <Bell size={16} /> Weekly Predictions

@@ -2,8 +2,8 @@ from datetime import date, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from app.config import PHASE2_PREDICTION_SYMBOLS, SETUP_DISCLAIMER
-from app.models import DailyRecommendation, PriceBar, ScanResult, ScanRun, ScoringWeight, Ticker, WeeklyEvaluationReport, WeeklyPrediction
+from app.config import FOCUS_GROUP_SYMBOLS, SETUP_DISCLAIMER
+from app.models import DailyRecommendation, FocusGroupAnalysis, FocusStockProfile, PriceBar, ScanResult, ScanRun, ScoringWeight, Ticker, WeeklyEvaluationReport, WeeklyPrediction
 from app.services.market_data import fetch_daily_bars, upsert_price_bars
 from app.services.news_sentiment import score_symbol_news
 from app.services.scoring import DEFAULT_COMPONENT_WEIGHTS
@@ -20,6 +20,22 @@ def latest_weight_row(db: Session) -> ScoringWeight | None:
 
 def latest_evaluation_report(db: Session) -> WeeklyEvaluationReport | None:
     return db.query(WeeklyEvaluationReport).order_by(WeeklyEvaluationReport.created_at.desc()).first()
+
+
+def latest_focus_group(db: Session) -> list[FocusGroupAnalysis]:
+    latest_date = db.query(FocusGroupAnalysis.analysis_date).order_by(FocusGroupAnalysis.analysis_date.desc()).first()
+    if not latest_date:
+        return []
+    return (
+        db.query(FocusGroupAnalysis)
+        .filter(FocusGroupAnalysis.analysis_date == latest_date[0])
+        .order_by(FocusGroupAnalysis.symbol.asc())
+        .all()
+    )
+
+
+def focus_profiles(db: Session) -> list[FocusStockProfile]:
+    return db.query(FocusStockProfile).order_by(FocusStockProfile.symbol.asc()).all()
 
 
 def latest_scan(db: Session) -> ScanRun | None:
@@ -39,13 +55,22 @@ def generate_daily_top_five(db: Session) -> list[DailyRecommendation]:
     if existing:
         return existing
 
-    candidates = (
+    pool = (
         db.query(ScanResult)
-        .filter(ScanResult.scan_run_id == run.id)
+        .filter(ScanResult.scan_run_id == run.id, ScanResult.score_total >= 70)
         .order_by(ScanResult.score_total.desc())
-        .limit(5)
+        .limit(20)
         .all()
     )
+    candidates = [result for result in pool if "Risk Warning / Avoid" not in (result.setup_types or [])][:5]
+    if not candidates:
+        candidates = (
+            db.query(ScanResult)
+            .filter(ScanResult.scan_run_id == run.id)
+            .order_by(ScanResult.score_total.desc())
+            .limit(5)
+            .all()
+        )
     rows: list[DailyRecommendation] = []
     for index, result in enumerate(candidates, start=1):
         rationale = (
@@ -67,6 +92,76 @@ def generate_daily_top_five(db: Session) -> list[DailyRecommendation]:
         )
         db.add(row)
         rows.append(row)
+    db.commit()
+    for row in rows:
+        db.refresh(row)
+    return rows
+
+
+def generate_focus_group_analysis(db: Session) -> list[FocusGroupAnalysis]:
+    today = date.today()
+    existing = (
+        db.query(FocusGroupAnalysis)
+        .filter(FocusGroupAnalysis.analysis_date == today)
+        .order_by(FocusGroupAnalysis.symbol.asc())
+        .all()
+    )
+    if existing:
+        return existing
+
+    run = latest_scan(db)
+    scan_results = {}
+    if run:
+        scan_results = {result.symbol: result for result in db.query(ScanResult).filter(ScanResult.scan_run_id == run.id).all()}
+
+    rows: list[FocusGroupAnalysis] = []
+    for symbol in FOCUS_GROUP_SYMBOLS:
+        _ensure_symbol_price_data(db, symbol)
+        result = scan_results.get(symbol)
+        bars = _recent_bars(db, symbol, limit=260)
+        metrics = _focus_price_metrics(bars)
+        sentiment = score_symbol_news(symbol)
+        relevance = _focus_relevance(symbol)
+        bias = _focus_bias(result, metrics, sentiment)
+        confidence = _focus_confidence(result, metrics, sentiment)
+        support_resistance = _support_resistance(bars)
+        risk_level = _risk_level(result, metrics)
+        setup = _technical_setup(result, metrics)
+        catalyst = _key_catalyst(symbol, sentiment, relevance, metrics)
+        row = FocusGroupAnalysis(
+            analysis_date=today,
+            symbol=symbol,
+            scan_run_id=run.id if run else None,
+            scan_result_id=result.id if result else None,
+            bias=bias,
+            confidence=confidence,
+            current_technical_setup=setup,
+            key_catalyst=catalyst,
+            risk_level=risk_level,
+            suggested_watch_action=_watch_action(bias, risk_level, confidence),
+            entry_zone=_entry_zone(result, support_resistance),
+            stop_loss_area=_stop_area(result, support_resistance),
+            target_zone=_target_zone(result, support_resistance, metrics),
+            daily_move_pct=metrics.get("daily_move_pct"),
+            weekly_move_pct=metrics.get("weekly_move_pct"),
+            volume_spike=bool(metrics.get("volume_spike")),
+            relative_volume=metrics.get("relative_volume"),
+            indicators=_focus_indicators(result, metrics),
+            support_resistance=support_resistance,
+            catalysts={
+                "earnings_date": "unavailable from configured free data sources",
+                "recent_news": sentiment.get("headline_count", 0),
+                "news_sentiment": sentiment["label"],
+                "analyst_activity": "unavailable from configured free data sources",
+            },
+            relevance=relevance,
+            news_sentiment_score=sentiment["score"],
+            news_sentiment_label=sentiment["label"],
+            summary=_focus_summary(symbol, bias, confidence, setup, catalyst, risk_level),
+        )
+        db.add(row)
+        rows.append(row)
+        _ensure_focus_profile(db, symbol)
     db.commit()
     for row in rows:
         db.refresh(row)
@@ -98,13 +193,23 @@ def generate_weekly_predictions(db: Session) -> list[WeeklyPrediction]:
             for result in db.query(ScanResult).filter(ScanResult.scan_run_id == run.id).all()
         }
     rows: list[WeeklyPrediction] = []
-    for symbol in PHASE2_PREDICTION_SYMBOLS:
+    for symbol in FOCUS_GROUP_SYMBOLS:
         result = scan_results.get(symbol)
+        bars = _recent_bars(db, symbol, limit=260)
+        price_metrics = _focus_price_metrics(bars)
+        sentiment = score_symbol_news(symbol)
         score = result.score_total if result else 50
         direction = "bullish" if score >= 65 else "bearish" if score <= 40 else "neutral"
         predicted_return = _predicted_return(score, direction)
         confidence = _confidence(score, result)
         component_scores = _components(result)
+        predicted_low, predicted_high = _predicted_range(price_metrics, predicted_return)
+        bullish_probability, bearish_probability = _direction_probabilities(score, sentiment)
+        key_drivers = _key_drivers(symbol, result, sentiment, price_metrics)
+        main_risks = _main_risks(result, price_metrics, sentiment)
+        technical_setup = _technical_setup(result, price_metrics)
+        sentiment_impact = f"Recent news sentiment is {sentiment['label']} with a bounded score of {sentiment['score']}."
+        trade_plan = _suggested_trade_plan(direction, result, predicted_low, predicted_high)
         rationale = _prediction_rationale(symbol, result, score, direction)
         row = WeeklyPrediction(
             week_start=week_start,
@@ -114,9 +219,18 @@ def generate_weekly_predictions(db: Session) -> list[WeeklyPrediction]:
             scan_result_id=result.id if result else None,
             direction=direction,
             predicted_return_pct=predicted_return,
+            predicted_range_low=predicted_low,
+            predicted_range_high=predicted_high,
+            bullish_probability=bullish_probability,
+            bearish_probability=bearish_probability,
             confidence=round(confidence, 2),
             score_total=score,
             component_scores=component_scores,
+            key_drivers=key_drivers,
+            main_risks=main_risks,
+            technical_setup=technical_setup,
+            sentiment_impact=sentiment_impact,
+            suggested_trade_plan=trade_plan,
             rationale=rationale,
         )
         db.add(row)
@@ -154,11 +268,20 @@ def evaluate_weekly_predictions(db: Session) -> list[WeeklyPrediction]:
         end_price = symbol_prices[-1].close
         actual = ((end_price - start_price) / start_price) * 100
         sentiment = score_symbol_news(prediction.symbol)
+        in_range = (
+            prediction.predicted_range_low is not None
+            and prediction.predicted_range_high is not None
+            and prediction.predicted_range_low <= end_price <= prediction.predicted_range_high
+        )
+        volume_confirmation = _volume_confirmation(symbol_prices, prediction.direction)
         prediction.start_price = start_price
         prediction.end_price = end_price
         prediction.actual_return_pct = round(actual, 2)
         prediction.outcome = _outcome(prediction.direction, actual)
         prediction.outcome_reason = _outcome_reason(prediction.direction, actual)
+        prediction.range_hit = in_range
+        prediction.volume_confirmation = volume_confirmation
+        prediction.sector_relative_behavior = _sector_relative_behavior(db, prediction.symbol, prediction.week_start, prediction.week_end, actual)
         prediction.false_positive = prediction.outcome == "miss" and prediction.direction in {"bullish", "bearish"} and prediction.confidence >= 0.5
         prediction.news_sentiment_score = sentiment["score"]
         prediction.news_sentiment_label = sentiment["label"]
@@ -169,6 +292,7 @@ def evaluate_weekly_predictions(db: Session) -> list[WeeklyPrediction]:
         db.commit()
         report = build_weekly_evaluation_report(db, evaluated)
         adjust_scoring_weights(db, evaluated, report)
+        update_focus_profiles(db, evaluated)
     return evaluated
 
 
@@ -236,6 +360,55 @@ def adjust_scoring_weights(db: Session, predictions: list[WeeklyPrediction], rep
     return row
 
 
+def update_focus_profiles(db: Session, predictions: list[WeeklyPrediction]) -> None:
+    for prediction in predictions:
+        profile = _ensure_focus_profile(db, prediction.symbol)
+        stats = profile.accuracy_stats or {}
+        total = int(stats.get("evaluated_weeks", 0)) + 1
+        hits = int(stats.get("direction_hits", 0)) + (1 if prediction.outcome == "hit" else 0)
+        range_hits = int(stats.get("range_hits", 0)) + (1 if prediction.range_hit else 0)
+        false_positives = int(stats.get("false_positives", 0)) + (1 if prediction.false_positive else 0)
+        profile.accuracy_stats = {
+            "evaluated_weeks": total,
+            "direction_hits": hits,
+            "direction_accuracy": round(hits / total, 3),
+            "range_hits": range_hits,
+            "range_accuracy": round(range_hits / total, 3),
+            "false_positives": false_positives,
+            "last_outcome": prediction.outcome,
+            "last_actual_return_pct": prediction.actual_return_pct,
+        }
+        behavior = profile.behavior_profile or {}
+        behavior["last_volume_confirmation"] = prediction.volume_confirmation
+        behavior["last_sector_relative_behavior"] = prediction.sector_relative_behavior
+        behavior["confidence_calibration"] = "constructive" if prediction.outcome == "hit" and prediction.confidence >= 0.5 else "needs_review"
+        profile.behavior_profile = behavior
+        weights = profile.indicator_weights or DEFAULT_COMPONENT_WEIGHTS.copy()
+        for component, score in (prediction.component_scores or {}).items():
+            if score <= 0:
+                continue
+            delta = 0.02 if prediction.outcome == "hit" else -0.02
+            if prediction.false_positive:
+                delta -= 0.02
+            weights[component] = round(min(1.25, max(0.75, weights.get(component, 1.0) + delta)), 3)
+        profile.indicator_weights = weights
+    db.commit()
+
+
+def _ensure_focus_profile(db: Session, symbol: str) -> FocusStockProfile:
+    profile = db.query(FocusStockProfile).filter(FocusStockProfile.symbol == symbol).one_or_none()
+    if profile:
+        return profile
+    profile = FocusStockProfile(
+        symbol=symbol,
+        behavior_profile={"profile_status": "collecting_history"},
+        indicator_weights=DEFAULT_COMPONENT_WEIGHTS.copy(),
+        accuracy_stats={"evaluated_weeks": 0, "direction_accuracy": 0, "range_accuracy": 0, "false_positives": 0},
+    )
+    db.add(profile)
+    return profile
+
+
 def _ensure_symbol_price_data(db: Session, symbol: str) -> None:
     ticker = db.query(Ticker).filter(Ticker.symbol == symbol).one_or_none()
     if not ticker:
@@ -251,6 +424,260 @@ def _ensure_symbol_price_data(db: Session, symbol: str) -> None:
         upsert_price_bars(db, ticker, bars)
     except Exception:
         return
+
+
+def _recent_bars(db: Session, symbol: str, limit: int = 260) -> list[PriceBar]:
+    return (
+        db.query(PriceBar)
+        .join(Ticker)
+        .filter(Ticker.symbol == symbol)
+        .order_by(PriceBar.date.desc())
+        .limit(limit)
+        .all()
+    )[::-1]
+
+
+def _focus_price_metrics(bars: list[PriceBar]) -> dict:
+    if not bars:
+        return {}
+    latest = bars[-1]
+    prior = bars[-2] if len(bars) >= 2 else latest
+    week_prior = bars[-6] if len(bars) >= 6 else bars[0]
+    avg_volume = sum(bar.volume for bar in bars[-20:]) / min(len(bars), 20)
+    relative_volume = latest.volume / avg_volume if avg_volume else 0
+    closes = [bar.close for bar in bars]
+    return {
+        "close": latest.close,
+        "daily_move_pct": round(((latest.close - prior.close) / prior.close) * 100, 2) if prior.close else 0,
+        "weekly_move_pct": round(((latest.close - week_prior.close) / week_prior.close) * 100, 2) if week_prior.close else 0,
+        "relative_volume": round(relative_volume, 2),
+        "volume_spike": relative_volume >= 1.5,
+        "support": round(min(bar.low for bar in bars[-20:]), 2),
+        "resistance": round(max(bar.high for bar in bars[-20:]), 2),
+        "avg_close_20": round(sum(closes[-20:]) / min(len(closes), 20), 2),
+    }
+
+
+def _support_resistance(bars: list[PriceBar]) -> dict:
+    if not bars:
+        return {"support": None, "resistance": None, "method": "insufficient data"}
+    lookback = bars[-20:]
+    return {
+        "support": round(min(bar.low for bar in lookback), 2),
+        "resistance": round(max(bar.high for bar in lookback), 2),
+        "method": "20-bar high/low",
+    }
+
+
+def _focus_relevance(symbol: str) -> dict:
+    mapping = {
+        "NVDA": ["AI infrastructure", "semiconductor", "data center"],
+        "AMD": ["AI infrastructure", "semiconductor", "data center"],
+        "INTC": ["semiconductor", "data center"],
+        "IONQ": ["quantum computing"],
+        "RGTI": ["quantum computing"],
+        "NVTS": ["semiconductor", "data center infrastructure"],
+        "SMCI": ["AI infrastructure", "data center"],
+        "MU": ["semiconductor", "data center"],
+        "RKLB": ["space/defense/advanced technology"],
+        "RVI": ["advanced technology watchlist"],
+    }
+    tags = mapping.get(symbol, ["advanced technology watchlist"])
+    return {
+        "ai_infrastructure": "AI infrastructure" in tags,
+        "quantum_computing": "quantum computing" in tags,
+        "semiconductor": "semiconductor" in tags,
+        "data_center": any("data center" in tag for tag in tags),
+        "space_defense_advanced_technology": any("space" in tag or "advanced" in tag for tag in tags),
+        "tags": tags,
+    }
+
+
+def _focus_bias(result: ScanResult | None, metrics: dict, sentiment: dict) -> str:
+    score = result.score_total if result else 50
+    if score >= 65 and metrics.get("weekly_move_pct", 0) >= 0 and sentiment["score"] >= -0.2:
+        return "bullish"
+    if score <= 40 or (metrics.get("weekly_move_pct", 0) < -4 and sentiment["score"] < 0):
+        return "bearish"
+    return "neutral"
+
+
+def _focus_confidence(result: ScanResult | None, metrics: dict, sentiment: dict) -> float:
+    score = result.score_total if result else 50
+    confidence = min(0.85, max(0.25, abs(score - 50) / 55))
+    if metrics.get("volume_spike"):
+        confidence += 0.06
+    if sentiment["label"] in {"positive", "negative"}:
+        confidence += 0.04
+    if result and result.risk_flags:
+        confidence -= min(0.18, len(result.risk_flags) * 0.04)
+    return round(min(0.9, max(0.2, confidence)), 2)
+
+
+def _risk_level(result: ScanResult | None, metrics: dict) -> str:
+    atr_pct = (result.indicators or {}).get("atr_percent") if result else None
+    if result and result.risk_flags:
+        return "high"
+    if atr_pct and atr_pct > 6:
+        return "high"
+    if metrics.get("volume_spike") or (atr_pct and atr_pct > 4):
+        return "medium"
+    return "low"
+
+
+def _technical_setup(result: ScanResult | None, metrics: dict) -> str:
+    if result:
+        return ", ".join(result.setup_types) or "No clear Stage 1 setup"
+    if metrics.get("weekly_move_pct") is None:
+        return "Insufficient fresh price data"
+    return "Focus watchlist baseline; waiting for a full scanner result"
+
+
+def _key_catalyst(symbol: str, sentiment: dict, relevance: dict, metrics: dict) -> str:
+    if metrics.get("volume_spike"):
+        return f"Volume spike with {metrics.get('relative_volume')}x relative volume."
+    if sentiment["label"] != "neutral":
+        return f"Recent news sentiment is {sentiment['label']}."
+    return f"Theme exposure: {', '.join(relevance['tags'])}."
+
+
+def _watch_action(bias: str, risk_level: str, confidence: float) -> str:
+    if risk_level == "high":
+        return "Watch only; require confirmation and smaller risk."
+    if bias == "bullish" and confidence >= 0.45:
+        return "Watch for confirmation near entry zone."
+    if bias == "bearish":
+        return "Avoid new long plans until price stabilizes."
+    return "Monitor; wait for clearer setup or catalyst confirmation."
+
+
+def _entry_zone(result: ScanResult | None, levels: dict) -> str | None:
+    if result and result.entry_zone:
+        return f"Near ${result.entry_zone:.2f}"
+    if levels.get("resistance"):
+        return f"Above ${levels['resistance']:.2f} confirmation"
+    return None
+
+
+def _stop_area(result: ScanResult | None, levels: dict) -> str | None:
+    if result and result.stop_loss:
+        return f"Below ${result.stop_loss:.2f}"
+    if levels.get("support"):
+        return f"Below ${levels['support']:.2f}"
+    return None
+
+
+def _target_zone(result: ScanResult | None, levels: dict, metrics: dict) -> str | None:
+    if result and result.target_1 and result.target_2:
+        return f"${result.target_1:.2f} to ${result.target_2:.2f}"
+    close = metrics.get("close")
+    resistance = levels.get("resistance")
+    if close and resistance:
+        return f"${resistance:.2f} to ${max(resistance, close * 1.08):.2f}"
+    return None
+
+
+def _focus_indicators(result: ScanResult | None, metrics: dict) -> dict:
+    indicators = dict(result.indicators or {}) if result else {}
+    indicators.update(
+        {
+            "daily_move_pct": metrics.get("daily_move_pct"),
+            "weekly_move_pct": metrics.get("weekly_move_pct"),
+            "relative_volume": metrics.get("relative_volume"),
+            "volume_spike": metrics.get("volume_spike"),
+        }
+    )
+    return indicators
+
+
+def _focus_summary(symbol: str, bias: str, confidence: float, setup: str, catalyst: str, risk_level: str) -> str:
+    return (
+        f"{symbol} focus view is {bias} with {confidence:.0%} confidence. "
+        f"Technical setup: {setup}. Key catalyst: {catalyst} Risk level: {risk_level}. "
+        "This is focus-group research, not a trade recommendation."
+    )
+
+
+def _predicted_range(metrics: dict, predicted_return_pct: float) -> tuple[float | None, float | None]:
+    close = metrics.get("close")
+    if not close:
+        return None, None
+    weekly_vol = max(abs(metrics.get("weekly_move_pct", 0)), 3.0)
+    midpoint = close * (1 + predicted_return_pct / 100)
+    width = close * (weekly_vol / 100)
+    return round(midpoint - width, 2), round(midpoint + width, 2)
+
+
+def _direction_probabilities(score: int, sentiment: dict) -> tuple[float, float]:
+    bullish = min(0.8, max(0.2, 0.5 + ((score - 50) / 100) + (sentiment["score"] * 0.12)))
+    bearish = min(0.8, max(0.2, 1 - bullish))
+    return round(bullish, 2), round(bearish, 2)
+
+
+def _key_drivers(symbol: str, result: ScanResult | None, sentiment: dict, metrics: dict) -> list[str]:
+    drivers = []
+    if result and result.setup_types:
+        drivers.append(f"Scanner setup: {', '.join(result.setup_types[:2])}")
+    if metrics.get("volume_spike"):
+        drivers.append(f"Volume confirmation at {metrics.get('relative_volume')}x relative volume")
+    if sentiment["label"] != "neutral":
+        drivers.append(f"{sentiment['label'].title()} news sentiment")
+    drivers.append(f"Theme exposure: {', '.join(_focus_relevance(symbol)['tags'])}")
+    return drivers[:4]
+
+
+def _main_risks(result: ScanResult | None, metrics: dict, sentiment: dict) -> list[str]:
+    risks = list(result.risk_flags or []) if result else ["No current scan result"]
+    if metrics.get("weekly_move_pct", 0) < -5:
+        risks.append("Weak weekly price action")
+    if sentiment["score"] < -0.2:
+        risks.append("Negative news sentiment")
+    return risks[:5] or ["Normal market risk"]
+
+
+def _suggested_trade_plan(direction: str, result: ScanResult | None, low: float | None, high: float | None) -> str:
+    if direction == "neutral":
+        return "No directional plan; monitor for clearer confirmation."
+    if direction == "bullish":
+        return f"Research long setup only after confirmation; expected weekly range {low or '-'} to {high or '-'}."
+    return f"Defensive watch; avoid bullish entries unless price reclaims key levels. Expected range {low or '-'} to {high or '-'}."
+
+
+def _volume_confirmation(prices: list[PriceBar], direction: str) -> str:
+    if len(prices) < 2:
+        return "unknown"
+    avg_volume = sum(price.volume for price in prices) / len(prices)
+    latest = prices[-1]
+    price_up = latest.close >= prices[0].close
+    high_volume = latest.volume >= avg_volume * 1.1
+    if direction == "bullish" and price_up and high_volume:
+        return "confirmed"
+    if direction == "bearish" and not price_up and high_volume:
+        return "confirmed"
+    if high_volume:
+        return "contradicted"
+    return "unconfirmed"
+
+
+def _sector_relative_behavior(db: Session, symbol: str, week_start: date, week_end: date, actual_return_pct: float) -> str:
+    benchmark = "QQQ" if symbol in {"NVDA", "AMD", "INTC", "SMCI", "MU", "NVTS"} else "SPY"
+    _ensure_symbol_price_data(db, benchmark)
+    bars = (
+        db.query(PriceBar)
+        .join(Ticker)
+        .filter(Ticker.symbol == benchmark, PriceBar.date >= week_start, PriceBar.date <= week_end)
+        .order_by(PriceBar.date.asc())
+        .all()
+    )
+    if len(bars) < 2:
+        return "benchmark unavailable"
+    benchmark_return = ((bars[-1].close - bars[0].close) / bars[0].close) * 100
+    spread = actual_return_pct - benchmark_return
+    if spread > 2:
+        return f"outperformed {benchmark}"
+    if spread < -2:
+        return f"underperformed {benchmark}"
+    return f"tracked {benchmark}"
 
 
 def _indicator_effectiveness(predictions: list[WeeklyPrediction]) -> dict:

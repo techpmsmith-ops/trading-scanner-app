@@ -69,9 +69,18 @@ export type WeeklyPrediction = {
   scan_result_id: number | null;
   direction: string;
   predicted_return_pct: number;
+  predicted_range_low: number | null;
+  predicted_range_high: number | null;
+  bullish_probability: number | null;
+  bearish_probability: number | null;
   confidence: number;
   score_total: number;
   component_scores: Record<string, number>;
+  key_drivers: string[] | null;
+  main_risks: string[] | null;
+  technical_setup: string | null;
+  sentiment_impact: string | null;
+  suggested_trade_plan: string | null;
   rationale: string;
   status: string;
   start_price: number | null;
@@ -79,6 +88,9 @@ export type WeeklyPrediction = {
   actual_return_pct: number | null;
   outcome: string | null;
   outcome_reason: string | null;
+  range_hit: boolean | null;
+  volume_confirmation: string | null;
+  sector_relative_behavior: string | null;
   false_positive: boolean;
   news_sentiment_score: number | null;
   news_sentiment_label: string | null;
@@ -129,11 +141,93 @@ export type AlertSubscription = {
 };
 
 export type Phase2Dashboard = {
+  focus_group: FocusGroupAnalysis[];
+  focus_profiles: FocusStockProfile[];
   daily_top_five: DailyRecommendation[];
   weekly_predictions: WeeklyPrediction[];
   scoring_weights: ScoringWeight | null;
   latest_evaluation: WeeklyEvaluationReport | null;
   prediction_symbols: string[];
+};
+
+export type FocusGroupAnalysis = {
+  id: number;
+  analysis_date: string;
+  symbol: string;
+  bias: string;
+  confidence: number;
+  current_technical_setup: string;
+  key_catalyst: string;
+  risk_level: string;
+  suggested_watch_action: string;
+  entry_zone: string | null;
+  stop_loss_area: string | null;
+  target_zone: string | null;
+  daily_move_pct: number | null;
+  weekly_move_pct: number | null;
+  volume_spike: boolean;
+  relative_volume: number | null;
+  indicators: Record<string, any>;
+  support_resistance: Record<string, any>;
+  catalysts: Record<string, any>;
+  relevance: Record<string, any>;
+  news_sentiment_score: number | null;
+  news_sentiment_label: string | null;
+  summary: string;
+  created_at: string;
+};
+
+export type FocusStockProfile = {
+  id: number;
+  symbol: string;
+  behavior_profile: Record<string, any>;
+  indicator_weights: Record<string, number>;
+  accuracy_stats: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BacktestMetrics = {
+  total_return_pct: number;
+  annualized_volatility_pct: number;
+  sharpe_ratio: number;
+  max_drawdown_pct: number;
+  trade_count: number;
+  win_rate_pct: number;
+  average_trade_return_pct: number;
+  profit_factor: number | null;
+  final_equity: number;
+};
+
+export type BacktestTrade = {
+  entry_date: string;
+  exit_date: string;
+  entry_price: number;
+  exit_price: number;
+  return_pct: number;
+  result: string;
+};
+
+export type BacktestResult = {
+  symbol: string;
+  strategy: string | null;
+  strategy_name: string | null;
+  timeframe: string | null;
+  metrics: BacktestMetrics | null;
+  trades: BacktestTrade[];
+  equity_curve: { date: string; equity: number; benchmark_equity: number }[];
+  notes: string | null;
+  error: string | null;
+};
+
+export type BacktestResponse = {
+  timeframe: string;
+  initial_capital: number;
+  symbols: string[];
+  strategies: string[];
+  results: BacktestResult[];
+  comparison: BacktestResult[];
+  disclaimer: string;
 };
 
 export type PriceBar = {

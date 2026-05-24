@@ -13,6 +13,7 @@ This is a decision-support tool. It does not place trades.
 - Scores each ticker from 0 to 100 with visible score components
 - Estimates entry zone, stop, targets, and risk/reward with simple rules
 - Provides a dashboard, scanner table, ticker detail page, journal, and performance page
+- Provides a backtesting lab for comparing transparent strategy profiles against historical bars
 - Handles per-ticker scanner failures without crashing the whole run
 
 ## What It Does Not Do
@@ -22,6 +23,7 @@ This is a decision-support tool. It does not place trades.
 - Options, crypto, futures, or forex strategies
 - Social sentiment analysis
 - AI-generated trade calls
+- Backtests that predict future results
 - Real-time or high-frequency scanning
 
 ## Project Structure
@@ -178,6 +180,8 @@ The backend also schedules a daily end-of-day scan at 6:00 PM America/New_York w
 - `DELETE /journal/{id}`
 - `GET /performance/summary`
 - `GET /phase2/dashboard`
+- `POST /phase2/focus/generate`
+- `GET /phase2/focus/latest`
 - `POST /phase2/recommendations/generate`
 - `GET /phase2/recommendations/latest`
 - `POST /phase2/predictions/generate`
@@ -187,6 +191,20 @@ The backend also schedules a daily end-of-day scan at 6:00 PM America/New_York w
 - `GET /phase2/weights/latest`
 - `GET /phase2/alerts`
 - `POST /phase2/alerts`
+- `POST /backtests/run`
+- `GET /backtests/strategies`
+
+## Backtesting Lab
+
+The Backtests page runs historical research against stored or freshly downloaded OHLCV data. It supports:
+
+- Daily, weekly, and monthly timeframe testing
+- Rule-based strategy comparisons: trend following, momentum strength, breakout, mean reversion, and AI-assisted composite
+- Risk-adjusted metrics including Sharpe ratio, annualized volatility, maximum drawdown, win rate, average trade return, profit factor, and final equity
+- Strategy-vs-benchmark equity curve visualization
+- Recent trade review for each strategy profile
+
+Backtests are stateless and do not place trades or save orders. The AI-assisted composite is a transparent scanner-style indicator vote, not a black-box prediction engine.
 
 ## Configuration
 
@@ -203,7 +221,8 @@ SCAN_DEFAULT_LOOKBACK_DAYS=300
 MIN_AVG_VOLUME=500000
 MAX_ATR_PERCENT=8
 YFINANCE_CACHE_DIR=./.yf_cache
-PHASE2_PREDICTION_SYMBOLS=INTC,NVDA,AMD,IONQ,NVTS
+PHASE2_PREDICTION_SYMBOLS=INTC,NVDA,AMD,IONQ,NVTS,RVI,SMCI,RGTI,RKLB,MU
+FOCUS_GROUP_SYMBOLS=INTC,NVDA,AMD,IONQ,NVTS,RVI,SMCI,RGTI,RKLB,MU
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 TWILIO_ACCOUNT_SID=
@@ -495,6 +514,12 @@ Phase 2 adds richer decision-support features while keeping the app private and 
 - Secondary market-data fallback through Stooq when yfinance fails.
 - Daily top-five watchlist candidates generated from the latest scan.
 - Weekly prediction tracking for `INTC`, `NVDA`, `AMD`, `IONQ`, and `NVTS`.
+- Tiered intelligence model:
+  - Tier 1 Focus Group Watchlist: `INTC`, `NVDA`, `AMD`, `IONQ`, `NVTS`, `RVI`, `SMCI`, `RGTI`, `RKLB`, and `MU`.
+  - Tier 2 weekly prediction engine for each Focus Group stock.
+  - Tier 3 feedback loop that stores stock-specific behavior profiles and adjusts future component weights.
+  - Tier 4 broader market discovery that surfaces only exceptional high-confidence scanner candidates when available.
+- Daily Focus Group summaries with bias, confidence, technical setup, catalyst, risk level, watch action, price zones, support/resistance, relevance tags, and news sentiment.
 - Feedback loop that evaluates completed weekly predictions against actual weekly price movement and nudges scanner component weights within a bounded `0.8x` to `1.2x` range.
 - End-of-week evaluation reports showing prediction accuracy, win/loss ratio, false positives, indicator effectiveness, news-sentiment alignment, and SPY/QQQ market conditions.
 - Optional Telegram and SMS alerts for top-five and weekly prediction summaries.
@@ -506,6 +531,13 @@ Apply Phase 2 migrations:
 ```bash
 cd trading-scanner-app/backend
 alembic upgrade head
+```
+
+Focus Group symbols are configurable:
+
+```text
+FOCUS_GROUP_SYMBOLS=INTC,NVDA,AMD,IONQ,NVTS,RVI,SMCI,RGTI,RKLB,MU
+PHASE2_PREDICTION_SYMBOLS=INTC,NVDA,AMD,IONQ,NVTS,RVI,SMCI,RGTI,RKLB,MU
 ```
 
 Optional Telegram alert env vars:

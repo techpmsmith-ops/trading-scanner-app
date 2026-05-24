@@ -13,7 +13,12 @@ YFINANCE_CACHE_DIR = os.getenv("YFINANCE_CACHE_DIR", "./.yf_cache")
 MARKET_DATA_FALLBACK_PROVIDER = os.getenv("MARKET_DATA_FALLBACK_PROVIDER", "stooq")
 PHASE2_PREDICTION_SYMBOLS = [
     item.strip().upper()
-    for item in os.getenv("PHASE2_PREDICTION_SYMBOLS", "INTC,NVDA,AMD,IONQ,NVTS").split(",")
+    for item in os.getenv("PHASE2_PREDICTION_SYMBOLS", "INTC,NVDA,AMD,IONQ,NVTS,RVI,SMCI,RGTI,RKLB,MU").split(",")
+    if item.strip()
+]
+FOCUS_GROUP_SYMBOLS = [
+    item.strip().upper()
+    for item in os.getenv("FOCUS_GROUP_SYMBOLS", ",".join(PHASE2_PREDICTION_SYMBOLS)).split(",")
     if item.strip()
 ]
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")

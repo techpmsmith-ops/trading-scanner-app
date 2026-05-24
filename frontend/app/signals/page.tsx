@@ -33,7 +33,63 @@ export default async function SignalsPage() {
         <>
           <section className="rounded-md border border-border bg-panel">
             <div className="border-b border-border px-4 py-3">
-              <h2 className="font-semibold">Daily Top Five Watchlist</h2>
+              <h2 className="font-semibold">Tier 1 Focus Group Watchlist</h2>
+              <p className="mt-1 text-xs text-muted">Daily deeper analysis for {dashboard.prediction_symbols.join(", ")}.</p>
+            </div>
+            {dashboard.focus_group.length ? (
+              <div className="grid gap-3 p-4 lg:grid-cols-2">
+                {dashboard.focus_group.map((item) => (
+                  <div key={item.id} className="rounded-md border border-border bg-panelSoft p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-semibold">{item.symbol}</h3>
+                        <p className="mt-1 text-xs text-muted">{item.analysis_date}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <StatusPill value={item.bias} />
+                        <StatusPill value={`${number(item.confidence * 100, 0)}% confidence`} />
+                        <StatusPill value={`${item.risk_level} risk`} />
+                      </div>
+                    </div>
+                    <p className="mt-3 text-sm text-muted">{item.summary}</p>
+                    <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
+                      <Metric label="Daily Move" value={item.daily_move_pct === null ? "-" : `${number(item.daily_move_pct)}%`} />
+                      <Metric label="Weekly Move" value={item.weekly_move_pct === null ? "-" : `${number(item.weekly_move_pct)}%`} />
+                      <Metric label="Rel Volume" value={item.relative_volume === null ? "-" : `${number(item.relative_volume)}x`} />
+                    </div>
+                    <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                      <div>
+                        <div className="text-xs uppercase text-muted">Setup</div>
+                        <p className="mt-1">{item.current_technical_setup}</p>
+                      </div>
+                      <div>
+                        <div className="text-xs uppercase text-muted">Catalyst</div>
+                        <p className="mt-1">{item.key_catalyst}</p>
+                      </div>
+                      <div>
+                        <div className="text-xs uppercase text-muted">Watch Action</div>
+                        <p className="mt-1">{item.suggested_watch_action}</p>
+                      </div>
+                      <div>
+                        <div className="text-xs uppercase text-muted">Plan Zones</div>
+                        <p className="mt-1">Entry: {item.entry_zone || "-"} | Stop: {item.stop_loss_area || "-"} | Target: {item.target_zone || "-"}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-1">
+                      {(item.relevance.tags || []).map((tag: string) => <StatusPill key={tag} value={tag} />)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4"><EmptyState title="No focus group analysis yet" body="Generate Focus Group analysis after a scan, or use it to collect fresh watchlist context." /></div>
+            )}
+          </section>
+
+          <section className="rounded-md border border-border bg-panel">
+            <div className="border-b border-border px-4 py-3">
+              <h2 className="font-semibold">Tier 4 Broader Market Discovery</h2>
+              <p className="mt-1 text-xs text-muted">Only high-confidence exceptional opportunities are surfaced from the broader scanner when available.</p>
             </div>
             {dashboard.daily_top_five.length ? (
               <div className="divide-y divide-border">
@@ -63,7 +119,7 @@ export default async function SignalsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[920px] text-sm">
                   <thead className="bg-panelSoft text-left text-xs uppercase text-muted">
-                    <tr><th className="px-4 py-3">Symbol</th><th>Week</th><th>Direction</th><th>Predicted</th><th>Confidence</th><th>Score</th><th>Actual</th><th>Outcome</th><th>Reason</th><th>Rationale</th></tr>
+                    <tr><th className="px-4 py-3">Symbol</th><th>Week</th><th>Direction</th><th>Range</th><th>Prob.</th><th>Confidence</th><th>Actual</th><th>Outcome</th><th>Reason</th><th>Drivers / Plan</th></tr>
                   </thead>
                   <tbody>
                     {dashboard.weekly_predictions.map((item) => (
@@ -71,13 +127,16 @@ export default async function SignalsPage() {
                         <td className="px-4 py-3 font-semibold">{item.symbol}</td>
                         <td>{item.week_start} to {item.week_end}</td>
                         <td><StatusPill value={item.direction} /></td>
-                        <td>{number(item.predicted_return_pct)}%</td>
+                        <td>{item.predicted_range_low === null || item.predicted_range_high === null ? `${number(item.predicted_return_pct)}%` : `$${number(item.predicted_range_low)}-$${number(item.predicted_range_high)}`}</td>
+                        <td>B {number((item.bullish_probability || 0) * 100, 0)}% / R {number((item.bearish_probability || 0) * 100, 0)}%</td>
                         <td>{number(item.confidence * 100, 0)}%</td>
-                        <td>{item.score_total}</td>
                         <td>{item.actual_return_pct === null ? "-" : `${number(item.actual_return_pct)}%`}</td>
-                        <td>{item.outcome || item.status}</td>
+                        <td>{item.outcome || item.status}{item.range_hit === null ? "" : item.range_hit ? " / range hit" : " / range miss"}</td>
                         <td className="max-w-xs text-muted">{item.outcome_reason || "-"}</td>
-                        <td className="max-w-md text-muted">{item.rationale}</td>
+                        <td className="max-w-md text-muted">
+                          <div>{(item.key_drivers || []).join("; ") || item.rationale}</div>
+                          {item.suggested_trade_plan ? <div className="mt-1 text-xs">{item.suggested_trade_plan}</div> : null}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
