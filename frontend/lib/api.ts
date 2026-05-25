@@ -408,6 +408,7 @@ export type ResearchPortfolioDashboard = {
       gap: number;
       required_return_pct: number | null;
       required_monthly_return_pct: number | null;
+      required_monthly_dollars: number;
       months_remaining: number;
     }[];
     theme_allocations: { name: string; market_value: number; allocation_pct: number }[];

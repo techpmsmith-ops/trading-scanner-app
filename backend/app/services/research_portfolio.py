@@ -112,6 +112,7 @@ def _goal_path(label: str, target: float, current_value: float) -> dict:
         "gap": gap,
         "required_return_pct": round(required_return, 2) if required_return is not None else None,
         "required_monthly_return_pct": round(monthly, 2) if monthly is not None else None,
+        "required_monthly_dollars": round(gap / months, 2),
         "months_remaining": round(months, 1),
     }
 

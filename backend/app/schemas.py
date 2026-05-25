@@ -407,6 +407,7 @@ class ResearchGoalPath(BaseModel):
     gap: float
     required_return_pct: float | None
     required_monthly_return_pct: float | None
+    required_monthly_dollars: float
     months_remaining: float
 
 

@@ -42,10 +42,11 @@ export default async function PortfolioResearchPage() {
                   </div>
                   <StatusPill value={`${number(goal.months_remaining, 1)} months`} />
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="mt-4 grid gap-3 sm:grid-cols-4">
                   <SmallStat label="Gap" value={currency(goal.gap)} />
                   <SmallStat label="Return Needed" value={goal.required_return_pct === null ? "-" : `${number(goal.required_return_pct)}%`} />
-                  <SmallStat label="Monthly Pace" value={goal.required_monthly_return_pct === null ? "-" : `${number(goal.required_monthly_return_pct)}%`} />
+                  <SmallStat label="Monthly %" value={goal.required_monthly_return_pct === null ? "-" : `${number(goal.required_monthly_return_pct)}%`} />
+                  <SmallStat label="Monthly $" value={currency(goal.required_monthly_dollars)} />
                 </div>
               </div>
             ))}

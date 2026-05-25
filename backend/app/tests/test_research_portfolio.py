@@ -46,6 +46,7 @@ def test_research_portfolio_tracks_shares_and_leaps(db_session):
     assert payload["summary"]["current_value"] == 4850
     assert payload["summary"]["leaps_exposure_pct"] > 70
     assert payload["summary"]["goals"][0]["target_value"] == 250000
+    assert payload["summary"]["goals"][0]["required_monthly_dollars"] > 0
     assert len(payload["positions"]) == 2
 
 
