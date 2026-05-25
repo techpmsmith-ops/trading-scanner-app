@@ -56,6 +56,38 @@ DEFAULT_UNIVERSE = [
     "COST", "AVGO", "SMCI", "PLTR",
 ]
 
+DEFAULT_TICKER_METADATA = {
+    "SPY": {"name": "SPDR S&P 500 ETF Trust", "asset_type": "etf", "description": "ETF tracking large-cap U.S. stocks in the S&P 500."},
+    "QQQ": {"name": "Invesco QQQ Trust", "asset_type": "etf", "description": "ETF tracking the Nasdaq-100, with heavy technology exposure."},
+    "IWM": {"name": "iShares Russell 2000 ETF", "asset_type": "etf", "description": "ETF tracking small-cap U.S. stocks in the Russell 2000."},
+    "DIA": {"name": "SPDR Dow Jones Industrial Average ETF Trust", "asset_type": "etf", "description": "ETF tracking the Dow Jones Industrial Average."},
+    "AAPL": {"name": "Apple", "asset_type": "stock", "description": "Consumer technology company focused on iPhone, Mac, services, and devices."},
+    "MSFT": {"name": "Microsoft", "asset_type": "stock", "description": "Software, cloud, AI, gaming, and enterprise technology company."},
+    "NVDA": {"name": "NVIDIA", "asset_type": "stock", "description": "AI accelerator, GPU, data-center, networking, and software platform leader."},
+    "AMZN": {"name": "Amazon", "asset_type": "stock", "description": "E-commerce, cloud infrastructure, advertising, logistics, and digital services company."},
+    "META": {"name": "Meta Platforms", "asset_type": "stock", "description": "Social media, advertising, messaging, AI, and metaverse technology company."},
+    "GOOGL": {"name": "Alphabet", "asset_type": "stock", "description": "Search, advertising, YouTube, cloud, Android, and AI technology company."},
+    "TSLA": {"name": "Tesla", "asset_type": "stock", "description": "Electric vehicle, energy storage, autonomy, and robotics company."},
+    "AMD": {"name": "Advanced Micro Devices", "asset_type": "stock", "description": "CPU, GPU, AI accelerator, embedded, and data-center semiconductor company."},
+    "NFLX": {"name": "Netflix", "asset_type": "stock", "description": "Global streaming entertainment and advertising-supported media company."},
+    "JPM": {"name": "JPMorgan Chase", "asset_type": "stock", "description": "Large U.S. bank with consumer, investment banking, markets, and asset management businesses."},
+    "BAC": {"name": "Bank of America", "asset_type": "stock", "description": "Large U.S. bank with consumer banking, wealth, markets, and lending businesses."},
+    "XOM": {"name": "Exxon Mobil", "asset_type": "stock", "description": "Integrated oil and gas company with upstream, refining, chemicals, and low-carbon projects."},
+    "CVX": {"name": "Chevron", "asset_type": "stock", "description": "Integrated oil and gas company with global upstream and downstream operations."},
+    "UNH": {"name": "UnitedHealth Group", "asset_type": "stock", "description": "Healthcare insurance, services, pharmacy benefits, and health technology company."},
+    "COST": {"name": "Costco Wholesale", "asset_type": "stock", "description": "Membership warehouse retailer focused on bulk consumer goods and recurring membership revenue."},
+    "AVGO": {"name": "Broadcom", "asset_type": "stock", "description": "Semiconductor and infrastructure software company with AI networking and custom silicon exposure."},
+    "SMCI": {"name": "Super Micro Computer", "asset_type": "stock", "description": "AI server, rack-scale data-center, storage, and liquid-cooling hardware company."},
+    "PLTR": {"name": "Palantir Technologies", "asset_type": "stock", "description": "Data analytics, AI platform, government, and commercial software company."},
+    "INTC": {"name": "Intel", "asset_type": "stock", "description": "CPU, foundry, AI PC, data-center, and semiconductor manufacturing company."},
+    "IONQ": {"name": "IonQ", "asset_type": "stock", "description": "Quantum computing company developing trapped-ion quantum systems and cloud access."},
+    "NVTS": {"name": "Navitas Semiconductor", "asset_type": "stock", "description": "Power semiconductor company focused on GaN and SiC chips for efficient power systems."},
+    "RVI": {"name": "Retail Value Inc.", "asset_type": "stock", "description": "Special situation monitor slot retained from the AI infrastructure watchlist."},
+    "RGTI": {"name": "Rigetti Computing", "asset_type": "stock", "description": "Quantum computing company developing superconducting quantum processors and systems."},
+    "RKLB": {"name": "Rocket Lab", "asset_type": "stock", "description": "Space launch, satellite systems, defense, and space infrastructure company."},
+    "MU": {"name": "Micron Technology", "asset_type": "stock", "description": "Memory and storage semiconductor company with DRAM, NAND, and HBM exposure."},
+}
+
 SETUP_DISCLAIMER = (
     "This is a scanner-generated setup for review, not a trade recommendation. "
     "Confirm risk, liquidity, market conditions, and your own trading plan before acting."

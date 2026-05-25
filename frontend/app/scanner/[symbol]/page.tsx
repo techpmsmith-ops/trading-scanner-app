@@ -31,6 +31,8 @@ export default async function TickerDetail({ params }: { params: Promise<{ symbo
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{result.symbol}</h1>
+          {result.ticker_name ? <p className="mt-1 text-sm text-ink">{result.ticker_name}</p> : null}
+          {result.ticker_description ? <p className="mt-1 max-w-3xl text-sm text-muted">{result.ticker_description}</p> : null}
           <p className="mt-2 text-sm text-muted">{result.explanation}</p>
         </div>
         <AddToJournalButton result={result} />

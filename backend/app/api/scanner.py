@@ -18,7 +18,7 @@ def run_scan(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return (
         db.query(ScanRun)
-        .options(selectinload(ScanRun.results))
+        .options(selectinload(ScanRun.results).selectinload(ScanResult.ticker))
         .filter(ScanRun.id == scan_run.id)
         .one()
     )
@@ -46,7 +46,7 @@ def scan_status(db: Session = Depends(get_db)):
 def get_run(run_id: int, db: Session = Depends(get_db)):
     scan_run = (
         db.query(ScanRun)
-        .options(selectinload(ScanRun.results))
+        .options(selectinload(ScanRun.results).selectinload(ScanResult.ticker))
         .filter(ScanRun.id == run_id)
         .one_or_none()
     )
@@ -60,7 +60,7 @@ def get_run(run_id: int, db: Session = Depends(get_db)):
 def latest_scan(db: Session = Depends(get_db)):
     scan_run = (
         db.query(ScanRun)
-        .options(selectinload(ScanRun.results))
+        .options(selectinload(ScanRun.results).selectinload(ScanResult.ticker))
         .order_by(ScanRun.started_at.desc())
         .first()
     )
@@ -72,7 +72,7 @@ def latest_scan(db: Session = Depends(get_db)):
 
 @router.get("/results/{result_id}", response_model=ScanResultRead)
 def get_result(result_id: int, db: Session = Depends(get_db)):
-    result = db.query(ScanResult).filter(ScanResult.id == result_id).one_or_none()
+    result = db.query(ScanResult).options(selectinload(ScanResult.ticker)).filter(ScanResult.id == result_id).one_or_none()
     if not result:
         raise HTTPException(status_code=404, detail="Scan result not found")
     return result

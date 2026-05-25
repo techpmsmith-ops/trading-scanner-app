@@ -7,6 +7,9 @@ export type ScanResult = {
   scan_run_id: number;
   ticker_id: number;
   symbol: string;
+  ticker_name: string | null;
+  ticker_description: string | null;
+  ticker_asset_type: string | null;
   close_price: number;
   score_total: number;
   score_trend: number;

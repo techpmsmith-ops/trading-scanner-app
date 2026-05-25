@@ -17,14 +17,20 @@ export function ResultsTable({ results }: { results: ScanResult[] }) {
       .filter((result) => !setup || result.setup_types.includes(setup))
       .filter((result) => result.score_total >= threshold)
       .filter((result) => !riskOnly || result.risk_flags.length > 0)
-      .filter((result) => result.symbol.includes(search.trim().toUpperCase()))
+      .filter((result) => {
+        const query = search.trim().toUpperCase();
+        if (!query) return true;
+        return [result.symbol, result.ticker_name, result.ticker_description]
+          .filter(Boolean)
+          .some((value) => String(value).toUpperCase().includes(query));
+      })
       .sort((a, b) => b.score_total - a.score_total);
   }, [results, setup, threshold, riskOnly, search]);
 
   return (
     <div className="space-y-4">
       <div className="grid gap-3 rounded-md border border-border bg-panel p-4 md:grid-cols-4">
-        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search ticker" className="px-3 py-2 text-sm" />
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search ticker or company" className="px-3 py-2 text-sm" />
         <select value={setup} onChange={(event) => setSetup(event.target.value)} className="px-3 py-2 text-sm">
           <option value="">All setup types</option>
           {setupOptions.map((option) => <option key={option}>{option}</option>)}
@@ -39,7 +45,7 @@ export function ResultsTable({ results }: { results: ScanResult[] }) {
         <table className="w-full min-w-[980px] border-collapse bg-panel text-sm">
           <thead className="bg-panelSoft text-left text-xs uppercase text-muted">
             <tr>
-              {["Symbol", "Score", "Setup Type", "Close", "RSI", "Rel Vol", "ATR %", "R/R", "Risk Flags", ""].map((heading) => (
+              {["Ticker", "Score", "Setup Type", "Close", "RSI", "Rel Vol", "ATR %", "R/R", "Risk Flags", ""].map((heading) => (
                 <th key={heading} className="px-3 py-3">{heading}</th>
               ))}
             </tr>
@@ -47,7 +53,11 @@ export function ResultsTable({ results }: { results: ScanResult[] }) {
           <tbody>
             {filtered.map((result) => (
               <tr key={result.id} className="border-t border-border">
-                <td className="px-3 py-3 font-semibold text-ink">{result.symbol}</td>
+                <td className="px-3 py-3">
+                  <div className="font-semibold text-ink">{result.symbol}</div>
+                  <div className="mt-1 text-xs text-muted">{result.ticker_name || result.ticker_asset_type || "Tracked security"}</div>
+                  {result.ticker_description ? <div className="mt-1 max-w-[260px] text-xs leading-5 text-muted">{result.ticker_description}</div> : null}
+                </td>
                 <td className="px-3 py-3 text-positive">{result.score_total}</td>
                 <td className="px-3 py-3"><div className="flex flex-wrap gap-1">{result.setup_types.map((item) => <StatusPill key={item} value={item} />)}</div></td>
                 <td className="px-3 py-3">{number(result.close_price)}</td>

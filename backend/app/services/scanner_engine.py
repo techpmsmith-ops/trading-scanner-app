@@ -4,7 +4,7 @@ from time import perf_counter
 
 from sqlalchemy.orm import Session
 
-from app.config import SCAN_DEFAULT_LOOKBACK_DAYS
+from app.config import DEFAULT_TICKER_METADATA, SCAN_DEFAULT_LOOKBACK_DAYS
 from app.models import ScanResult, ScanRun, Ticker
 from app.services.explanations import build_explanation
 from app.services.indicators import latest_indicator_snapshot
@@ -24,8 +24,21 @@ class ScannerAlreadyRunning(Exception):
 def ensure_default_universe(db: Session, symbols: list[str]) -> None:
     for symbol in symbols:
         normalized = symbol.strip().upper()
-        if not db.query(Ticker).filter(Ticker.symbol == normalized).one_or_none():
-            db.add(Ticker(symbol=normalized))
+        metadata = DEFAULT_TICKER_METADATA.get(normalized, {})
+        ticker = db.query(Ticker).filter(Ticker.symbol == normalized).one_or_none()
+        if not ticker:
+            db.add(
+                Ticker(
+                    symbol=normalized,
+                    name=metadata.get("name"),
+                    asset_type=metadata.get("asset_type", "stock"),
+                )
+            )
+        else:
+            if not ticker.name and metadata.get("name"):
+                ticker.name = metadata["name"]
+            if ticker.asset_type == "stock" and metadata.get("asset_type"):
+                ticker.asset_type = metadata["asset_type"]
     db.commit()
 
 

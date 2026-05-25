@@ -3,6 +3,7 @@ from datetime import date, datetime
 from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.config import DEFAULT_TICKER_METADATA
 from app.database import Base
 
 
@@ -95,6 +96,21 @@ class ScanResult(Base):
 
     scan_run = relationship("ScanRun", back_populates="results")
     ticker = relationship("Ticker")
+
+    @property
+    def ticker_name(self) -> str | None:
+        metadata = DEFAULT_TICKER_METADATA.get(self.symbol.upper(), {})
+        return self.ticker.name if self.ticker and self.ticker.name else metadata.get("name")
+
+    @property
+    def ticker_description(self) -> str | None:
+        metadata = DEFAULT_TICKER_METADATA.get(self.symbol.upper(), {})
+        return metadata.get("description") or self.ticker_name
+
+    @property
+    def ticker_asset_type(self) -> str | None:
+        metadata = DEFAULT_TICKER_METADATA.get(self.symbol.upper(), {})
+        return self.ticker.asset_type if self.ticker else metadata.get("asset_type")
 
 
 class DailyRecommendation(Base):

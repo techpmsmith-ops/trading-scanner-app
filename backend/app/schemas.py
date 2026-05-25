@@ -53,6 +53,9 @@ class ScanResultRead(ORMModel):
     scan_run_id: int
     ticker_id: int
     symbol: str
+    ticker_name: str | None = None
+    ticker_description: str | None = None
+    ticker_asset_type: str | None = None
     close_price: float
     score_total: int
     score_trend: int

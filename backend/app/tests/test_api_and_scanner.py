@@ -19,6 +19,8 @@ def test_scanner_run_with_mock_data(monkeypatch, sample_bars):
     assert payload["status"] in ["completed", "partial_success"]
     assert payload["result_count"] > 0
     assert payload["results"][0]["score_total"] >= 0
+    assert payload["results"][0]["ticker_name"]
+    assert payload["results"][0]["ticker_description"]
 
 
 def test_health_endpoint():
