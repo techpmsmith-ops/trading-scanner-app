@@ -377,11 +377,14 @@ export type ResearchPosition = {
   average_cost: number | null;
   current_price: number | null;
   contracts: number | null;
+  option_type: "call" | "put";
   strike_price: number | null;
   expiration_date: string | null;
   premium_paid: number | null;
   current_contract_price: number | null;
   break_even: number | null;
+  price_updated_at: string | null;
+  price_update_source: string | null;
   notes: string | null;
   market_value: number;
   cost_basis: number;
@@ -402,6 +405,9 @@ export type ResearchPortfolioDashboard = {
     leaps_value: number;
     leaps_exposure_pct: number;
     positions_count: number;
+    last_price_updated_at: string | null;
+    last_price_update_source: string | null;
+    last_refresh_result: { refreshed: number; failed: { symbol: string; error: string }[]; symbols: string[] } | null;
     goals: {
       label: string;
       target_value: number;

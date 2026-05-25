@@ -1,7 +1,8 @@
 import { EmptyState } from "@/components/EmptyState";
+import { RefreshPortfolioPricesButton } from "@/components/RefreshPortfolioPricesButton";
 import { ResearchPositionForm } from "@/components/ResearchPositionForm";
 import { StatusPill } from "@/components/StatusPill";
-import { api, currency, number, ResearchPortfolioDashboard } from "@/lib/api";
+import { api, currency, dateTime, number, ResearchPortfolioDashboard } from "@/lib/api";
 import { authHeaders } from "@/lib/server-auth";
 
 async function getDashboard() {
@@ -18,9 +19,18 @@ export default async function PortfolioResearchPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Portfolio Research</h1>
-        <p className="mt-2 max-w-4xl text-sm text-muted">Manual research-side tracking for shares, LEAPS, thesis conviction, theme exposure, and the $250K base / $400K stretch path by December 31, 2026.</p>
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Portfolio Research</h1>
+          <p className="mt-2 max-w-4xl text-sm text-muted">Manual research-side tracking for shares, LEAPS, thesis conviction, theme exposure, and the $250K base / $400K stretch path by December 31, 2026.</p>
+          {summary ? (
+            <p className="mt-2 text-sm text-muted">
+              Last price update: {dateTime(summary.last_price_updated_at)}
+              {summary.last_price_update_source ? ` via ${formatSource(summary.last_price_update_source)}` : ""}
+            </p>
+          ) : null}
+        </div>
+        <RefreshPortfolioPricesButton />
       </div>
 
       {summary ? (
@@ -65,9 +75,9 @@ export default async function PortfolioResearchPage() {
 
       {dashboard?.positions.length ? (
         <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full min-w-[1080px] bg-panel text-sm">
+          <table className="w-full min-w-[1180px] bg-panel text-sm">
             <thead className="bg-panelSoft text-left text-xs uppercase text-muted">
-              <tr><th className="px-4 py-3">Symbol</th><th>Type</th><th>Role</th><th>Theme</th><th>Conviction</th><th>Value</th><th>Cost</th><th>P&L</th><th>LEAPS</th><th>Thesis</th></tr>
+              <tr><th className="px-4 py-3">Symbol</th><th>Type</th><th>Role</th><th>Theme</th><th>Conviction</th><th>Value</th><th>Cost</th><th>P&L</th><th>Updated</th><th>LEAPS</th><th>Thesis</th></tr>
             </thead>
             <tbody>
               {dashboard.positions.map((position) => (
@@ -80,6 +90,7 @@ export default async function PortfolioResearchPage() {
                   <td>{currency(position.market_value)}</td>
                   <td>{currency(position.cost_basis)}</td>
                   <td className={position.unrealized_pnl >= 0 ? "text-positive" : "text-danger"}>{currency(position.unrealized_pnl)} {position.unrealized_pnl_pct === null ? "" : `(${number(position.unrealized_pnl_pct)}%)`}</td>
+                  <td className="text-muted">{dateTime(position.price_updated_at)}{position.price_update_source ? <span className="block text-xs">{formatSource(position.price_update_source)}</span> : null}</td>
                   <td>{position.position_type === "leaps" ? `${position.contracts || 0}x ${currency(position.strike_price)} ${position.expiration_date || ""}` : "-"}</td>
                   <td className="max-w-md text-muted">{position.thesis || position.notes || "-"}</td>
                 </tr>
@@ -116,4 +127,8 @@ function Allocation({ title, rows }: { title: string; rows: { name: string; mark
       </div>
     </div>
   );
+}
+
+function formatSource(value: string) {
+  return value.replaceAll("_", " ");
 }

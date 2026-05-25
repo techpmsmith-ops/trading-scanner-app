@@ -16,6 +16,7 @@ const blank = {
   average_cost: "",
   current_price: "",
   contracts: "",
+  option_type: "call",
   strike_price: "",
   expiration_date: "",
   premium_paid: "",
@@ -75,6 +76,7 @@ export function ResearchPositionForm() {
         {isLeaps ? (
           <>
             <Field label="Contracts" value={form.contracts} onChange={(value) => update("contracts", value)} type="number" />
+            <Select label="Option type" value={form.option_type} onChange={(value) => update("option_type", value)} options={["call", "put"]} />
             <Field label="Strike" value={form.strike_price} onChange={(value) => update("strike_price", value)} type="number" />
             <Field label="Expiration" value={form.expiration_date} onChange={(value) => update("expiration_date", value)} type="date" />
             <Field label="Premium paid" value={form.premium_paid} onChange={(value) => update("premium_paid", value)} type="number" />

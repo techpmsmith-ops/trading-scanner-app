@@ -293,11 +293,14 @@ class ResearchPosition(Base, TimestampMixin):
     average_cost: Mapped[float | None] = mapped_column(Float, nullable=True)
     current_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     contracts: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    option_type: Mapped[str] = mapped_column(String(10), default="call")
     strike_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     expiration_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     premium_paid: Mapped[float | None] = mapped_column(Float, nullable=True)
     current_contract_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     break_even: Mapped[float | None] = mapped_column(Float, nullable=True)
+    price_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    price_update_source: Mapped[str | None] = mapped_column(String(40), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 

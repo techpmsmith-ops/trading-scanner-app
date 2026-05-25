@@ -1,10 +1,12 @@
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 
+import yfinance as yf
 from sqlalchemy.orm import Session
 
 from app.config import DEFAULT_TICKER_METADATA
 from app.models import ResearchPosition, Ticker
+from app.services.market_data import fetch_daily_bars
 
 BASE_GOAL = 250_000
 STRETCH_GOAL = 400_000
@@ -40,6 +42,7 @@ def ensure_research_ticker(db: Session, symbol: str) -> Ticker:
 
 
 def sync_share_positions_from_scan(db: Session, symbol: str, close_price: float) -> None:
+    now = datetime.utcnow()
     positions = (
         db.query(ResearchPosition)
         .filter(ResearchPosition.symbol == symbol.upper(), ResearchPosition.position_type == "shares")
@@ -47,6 +50,54 @@ def sync_share_positions_from_scan(db: Session, symbol: str, close_price: float)
     )
     for position in positions:
         position.current_price = close_price
+        position.price_updated_at = now
+        position.price_update_source = "scan"
+
+
+def refresh_research_prices(db: Session) -> dict:
+    positions = db.query(ResearchPosition).order_by(ResearchPosition.symbol.asc()).all()
+    refreshed: list[str] = []
+    failed: list[dict[str, str]] = []
+    now = datetime.utcnow()
+    for position in positions:
+        try:
+            if position.position_type == "leaps":
+                price = fetch_option_contract_price(position)
+                if price is None:
+                    raise ValueError("No matching option contract price found")
+                position.current_contract_price = price
+            else:
+                bars = fetch_daily_bars(position.symbol, lookback_days=10)
+                if bars.empty:
+                    raise ValueError("No share price data returned")
+                position.current_price = round(float(bars.iloc[-1]["close"]), 2)
+            position.price_updated_at = now
+            position.price_update_source = "manual_refresh"
+            refreshed.append(position.symbol)
+        except Exception as exc:
+            failed.append({"symbol": position.symbol, "error": str(exc)})
+    db.commit()
+    return {"refreshed": len(refreshed), "failed": failed, "symbols": refreshed}
+
+
+def fetch_option_contract_price(position: ResearchPosition) -> float | None:
+    if not position.expiration_date or position.strike_price is None:
+        return None
+    chain = yf.Ticker(position.symbol).option_chain(position.expiration_date.isoformat())
+    contracts = chain.puts if position.option_type == "put" else chain.calls
+    if contracts.empty:
+        return None
+    contracts = contracts.copy()
+    contracts["strike_distance"] = (contracts["strike"] - position.strike_price).abs()
+    row = contracts.sort_values("strike_distance").iloc[0]
+    last_price = float(row.get("lastPrice") or 0)
+    if last_price > 0:
+        return round(last_price, 2)
+    bid = float(row.get("bid") or 0)
+    ask = float(row.get("ask") or 0)
+    if bid > 0 and ask > 0:
+        return round((bid + ask) / 2, 2)
+    return None
 
 
 def position_market_value(position: ResearchPosition) -> float:
@@ -86,6 +137,11 @@ def portfolio_summary(positions: list[dict]) -> dict:
     unrealized = round(current_value - cost_basis, 2)
     shares_value = round(sum(item["market_value"] for item in positions if item["position_type"] == "shares"), 2)
     leaps_value = round(sum(item["market_value"] for item in positions if item["position_type"] == "leaps"), 2)
+    updated_positions = [item for item in positions if item.get("price_updated_at")]
+    last_updated = max((item["price_updated_at"] for item in updated_positions), default=None)
+    last_source = None
+    if last_updated:
+        last_source = next((item.get("price_update_source") for item in updated_positions if item.get("price_updated_at") == last_updated), None)
     return {
         "current_value": current_value,
         "cost_basis": cost_basis,
@@ -95,6 +151,9 @@ def portfolio_summary(positions: list[dict]) -> dict:
         "leaps_value": leaps_value,
         "leaps_exposure_pct": round((leaps_value / current_value) * 100, 2) if current_value else 0,
         "positions_count": len(positions),
+        "last_price_updated_at": last_updated,
+        "last_price_update_source": last_source,
+        "last_refresh_result": None,
         "goals": [_goal_path("Base goal", BASE_GOAL, current_value), _goal_path("Stretch goal", STRETCH_GOAL, current_value)],
         "theme_allocations": _allocations(positions, "theme"),
         "role_allocations": _allocations(positions, "role"),

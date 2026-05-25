@@ -350,11 +350,14 @@ class ResearchPositionBase(BaseModel):
     average_cost: float | None = None
     current_price: float | None = None
     contracts: int | None = None
+    option_type: Literal["call", "put"] = "call"
     strike_price: float | None = None
     expiration_date: date | None = None
     premium_paid: float | None = None
     current_contract_price: float | None = None
     break_even: float | None = None
+    price_updated_at: datetime | None = None
+    price_update_source: str | None = None
     notes: str | None = None
 
     @field_validator("symbol")
@@ -378,11 +381,14 @@ class ResearchPositionUpdate(BaseModel):
     average_cost: float | None = None
     current_price: float | None = None
     contracts: int | None = None
+    option_type: Literal["call", "put"] | None = None
     strike_price: float | None = None
     expiration_date: date | None = None
     premium_paid: float | None = None
     current_contract_price: float | None = None
     break_even: float | None = None
+    price_updated_at: datetime | None = None
+    price_update_source: str | None = None
     notes: str | None = None
 
     @field_validator("symbol")
@@ -420,6 +426,9 @@ class ResearchPortfolioSummary(BaseModel):
     leaps_value: float
     leaps_exposure_pct: float
     positions_count: int
+    last_price_updated_at: datetime | None = None
+    last_price_update_source: str | None = None
+    last_refresh_result: dict[str, Any] | None = None
     goals: list[ResearchGoalPath]
     theme_allocations: list[dict[str, Any]]
     role_allocations: list[dict[str, Any]]

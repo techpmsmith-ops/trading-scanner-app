@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models import ResearchPosition
 from app.schemas import ResearchPortfolioDashboard, ResearchPositionCreate, ResearchPositionRead, ResearchPositionUpdate
 from app.services.auth import get_current_user
-from app.services.research_portfolio import ensure_research_ticker, portfolio_dashboard, serialize_position
+from app.services.research_portfolio import ensure_research_ticker, portfolio_dashboard, refresh_research_prices, serialize_position
 
 router = APIRouter(prefix="/research-portfolio", tags=["research portfolio"], dependencies=[Depends(get_current_user)])
 
@@ -13,6 +13,14 @@ router = APIRouter(prefix="/research-portfolio", tags=["research portfolio"], de
 @router.get("", response_model=ResearchPortfolioDashboard)
 def dashboard(db: Session = Depends(get_db)):
     return portfolio_dashboard(db)
+
+
+@router.post("/refresh-prices", response_model=ResearchPortfolioDashboard)
+def refresh_prices(db: Session = Depends(get_db)):
+    result = refresh_research_prices(db)
+    dashboard = portfolio_dashboard(db)
+    dashboard["summary"]["last_refresh_result"] = result
+    return dashboard
 
 
 @router.post("/positions", response_model=ResearchPositionRead, status_code=201)
