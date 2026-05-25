@@ -3,11 +3,50 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from app.models import ResearchPosition
+from app.config import DEFAULT_TICKER_METADATA
+from app.models import ResearchPosition, Ticker
 
 BASE_GOAL = 250_000
 STRETCH_GOAL = 400_000
 GOAL_DATE = date(2026, 12, 31)
+
+
+def ensure_research_tickers(db: Session) -> None:
+    symbols = [row[0] for row in db.query(ResearchPosition.symbol).distinct().all()]
+    for symbol in symbols:
+        ensure_research_ticker(db, symbol)
+    db.commit()
+
+
+def ensure_research_ticker(db: Session, symbol: str) -> Ticker:
+    normalized = symbol.strip().upper()
+    metadata = DEFAULT_TICKER_METADATA.get(normalized, {})
+    ticker = db.query(Ticker).filter(Ticker.symbol == normalized).one_or_none()
+    if not ticker:
+        ticker = Ticker(
+            symbol=normalized,
+            name=metadata.get("name"),
+            asset_type=metadata.get("asset_type", "stock"),
+            active=True,
+        )
+        db.add(ticker)
+    else:
+        ticker.active = True
+        if not ticker.name and metadata.get("name"):
+            ticker.name = metadata["name"]
+        if ticker.asset_type == "stock" and metadata.get("asset_type"):
+            ticker.asset_type = metadata["asset_type"]
+    return ticker
+
+
+def sync_share_positions_from_scan(db: Session, symbol: str, close_price: float) -> None:
+    positions = (
+        db.query(ResearchPosition)
+        .filter(ResearchPosition.symbol == symbol.upper(), ResearchPosition.position_type == "shares")
+        .all()
+    )
+    for position in positions:
+        position.current_price = close_price
 
 
 def position_market_value(position: ResearchPosition) -> float:

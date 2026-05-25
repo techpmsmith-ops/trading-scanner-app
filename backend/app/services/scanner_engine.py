@@ -11,6 +11,7 @@ from app.services.indicators import latest_indicator_snapshot
 from app.services.market_data import bars_for_ticker, fetch_daily_bars, upsert_price_bars
 from app.services.logging import log_event, log_warning
 from app.services.phase2 import latest_weights
+from app.services.research_portfolio import ensure_research_tickers, sync_share_positions_from_scan
 from app.services.risk_reward import estimate_risk_reward
 from app.services.scoring import classify_setups, score_result
 
@@ -47,6 +48,7 @@ def run_scanner(db: Session, lookback_days: int = SCAN_DEFAULT_LOOKBACK_DAYS) ->
         raise ScannerAlreadyRunning("A scanner run is already in progress")
     started = perf_counter()
     try:
+        ensure_research_tickers(db)
         tickers = db.query(Ticker).filter(Ticker.active.is_(True)).order_by(Ticker.symbol.asc()).all()
         scan_run = ScanRun(run_date=date.today(), status="running", universe_count=len(tickers), result_count=0)
         db.add(scan_run)
@@ -66,6 +68,8 @@ def run_scanner(db: Session, lookback_days: int = SCAN_DEFAULT_LOOKBACK_DAYS) ->
                     raise ValueError("Not enough daily bars for reliable long-term indicators")
 
                 indicators = latest_indicator_snapshot(bars)
+                close_price = indicators["close"]
+                sync_share_positions_from_scan(db, ticker.symbol, close_price)
                 setups, risk_flags = classify_setups(indicators)
                 scores = score_result(indicators, setups, risk_flags, component_weights=component_weights)
                 rr = estimate_risk_reward(indicators, setups)
@@ -75,7 +79,7 @@ def run_scanner(db: Session, lookback_days: int = SCAN_DEFAULT_LOOKBACK_DAYS) ->
                         scan_run_id=scan_run.id,
                         ticker_id=ticker.id,
                         symbol=ticker.symbol,
-                        close_price=indicators["close"],
+                        close_price=close_price,
                         setup_types=setups,
                         risk_flags=risk_flags,
                         indicators=indicators,

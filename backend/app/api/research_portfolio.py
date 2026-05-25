@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models import ResearchPosition
 from app.schemas import ResearchPortfolioDashboard, ResearchPositionCreate, ResearchPositionRead, ResearchPositionUpdate
 from app.services.auth import get_current_user
-from app.services.research_portfolio import portfolio_dashboard, serialize_position
+from app.services.research_portfolio import ensure_research_ticker, portfolio_dashboard, serialize_position
 
 router = APIRouter(prefix="/research-portfolio", tags=["research portfolio"], dependencies=[Depends(get_current_user)])
 
@@ -21,6 +21,7 @@ def create_position(payload: ResearchPositionCreate, db: Session = Depends(get_d
     if row.position_type == "leaps" and row.break_even is None and row.strike_price is not None and row.premium_paid is not None:
         row.break_even = round(row.strike_price + row.premium_paid, 2)
     db.add(row)
+    ensure_research_ticker(db, row.symbol)
     db.commit()
     db.refresh(row)
     return serialize_position(row)
@@ -35,6 +36,7 @@ def update_position(position_id: int, payload: ResearchPositionUpdate, db: Sessi
         setattr(row, key, value)
     if row.position_type == "leaps" and row.break_even is None and row.strike_price is not None and row.premium_paid is not None:
         row.break_even = round(row.strike_price + row.premium_paid, 2)
+    ensure_research_ticker(db, row.symbol)
     db.commit()
     db.refresh(row)
     return serialize_position(row)
