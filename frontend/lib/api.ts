@@ -365,6 +365,56 @@ export type JournalEntry = {
   updated_at: string;
 };
 
+export type ResearchPosition = {
+  id: number;
+  symbol: string;
+  position_type: "shares" | "leaps";
+  role: "core" | "growth" | "speculative" | "hedge" | "watchlist";
+  theme: string | null;
+  thesis: string | null;
+  conviction: "low" | "medium" | "high" | "very_high";
+  quantity: number | null;
+  average_cost: number | null;
+  current_price: number | null;
+  contracts: number | null;
+  strike_price: number | null;
+  expiration_date: string | null;
+  premium_paid: number | null;
+  current_contract_price: number | null;
+  break_even: number | null;
+  notes: string | null;
+  market_value: number;
+  cost_basis: number;
+  unrealized_pnl: number;
+  unrealized_pnl_pct: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ResearchPortfolioDashboard = {
+  positions: ResearchPosition[];
+  summary: {
+    current_value: number;
+    cost_basis: number;
+    unrealized_pnl: number;
+    unrealized_pnl_pct: number | null;
+    shares_value: number;
+    leaps_value: number;
+    leaps_exposure_pct: number;
+    positions_count: number;
+    goals: {
+      label: string;
+      target_value: number;
+      gap: number;
+      required_return_pct: number | null;
+      required_monthly_return_pct: number | null;
+      months_remaining: number;
+    }[];
+    theme_allocations: { name: string; market_value: number; allocation_pct: number }[];
+    role_allocations: { name: string; market_value: number; allocation_pct: number }[];
+  };
+};
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const headers = new Headers(options.headers);

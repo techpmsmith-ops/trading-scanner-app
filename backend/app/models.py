@@ -279,6 +279,28 @@ class AlertSubscription(Base, TimestampMixin):
     alert_types: Mapped[list] = mapped_column(JSON, default=list)
 
 
+class ResearchPosition(Base, TimestampMixin):
+    __tablename__ = "research_positions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    symbol: Mapped[str] = mapped_column(String(16), index=True)
+    position_type: Mapped[str] = mapped_column(String(20), default="shares")
+    role: Mapped[str] = mapped_column(String(40), default="core")
+    theme: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    thesis: Mapped[str | None] = mapped_column(Text, nullable=True)
+    conviction: Mapped[str] = mapped_column(String(20), default="medium")
+    quantity: Mapped[float | None] = mapped_column(Float, nullable=True)
+    average_cost: Mapped[float | None] = mapped_column(Float, nullable=True)
+    current_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    contracts: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    strike_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    expiration_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    premium_paid: Mapped[float | None] = mapped_column(Float, nullable=True)
+    current_contract_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    break_even: Mapped[float | None] = mapped_column(Float, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class JournalEntry(Base, TimestampMixin):
     __tablename__ = "journal_entries"
 

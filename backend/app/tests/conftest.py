@@ -5,7 +5,7 @@ import pytest
 
 from app.main import app
 from app.database import Base, SessionLocal, engine, init_db
-from app.models import AlertSubscription, DailyRecommendation, FocusGroupAnalysis, FocusStockProfile, IntelligenceWatchlistSymbol, PriceBar, ScanResult, ScanRun, ScoringWeight, Ticker, User, WeeklyEvaluationReport, WeeklyPrediction
+from app.models import AlertSubscription, DailyRecommendation, FocusGroupAnalysis, FocusStockProfile, IntelligenceWatchlistSymbol, PriceBar, ResearchPosition, ScanResult, ScanRun, ScoringWeight, Ticker, User, WeeklyEvaluationReport, WeeklyPrediction
 from app.services.auth import get_current_user
 
 
@@ -49,14 +49,14 @@ def db_session():
     Base.metadata.drop_all(bind=engine)
     init_db()
     db = SessionLocal()
-    for model in [DailyRecommendation, WeeklyEvaluationReport, WeeklyPrediction, FocusGroupAnalysis, FocusStockProfile, IntelligenceWatchlistSymbol, ScoringWeight, AlertSubscription, ScanResult, PriceBar, ScanRun, Ticker]:
+    for model in [ResearchPosition, DailyRecommendation, WeeklyEvaluationReport, WeeklyPrediction, FocusGroupAnalysis, FocusStockProfile, IntelligenceWatchlistSymbol, ScoringWeight, AlertSubscription, ScanResult, PriceBar, ScanRun, Ticker]:
         db.query(model).delete()
     db.commit()
     try:
         yield db
     finally:
         db.rollback()
-        for model in [DailyRecommendation, WeeklyEvaluationReport, WeeklyPrediction, FocusGroupAnalysis, FocusStockProfile, IntelligenceWatchlistSymbol, ScoringWeight, AlertSubscription, ScanResult, PriceBar, ScanRun, Ticker]:
+        for model in [ResearchPosition, DailyRecommendation, WeeklyEvaluationReport, WeeklyPrediction, FocusGroupAnalysis, FocusStockProfile, IntelligenceWatchlistSymbol, ScoringWeight, AlertSubscription, ScanResult, PriceBar, ScanRun, Ticker]:
             db.query(model).delete()
         db.commit()
         db.close()

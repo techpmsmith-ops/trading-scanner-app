@@ -339,6 +339,96 @@ class AlertTestResponse(BaseModel):
     detail: str
 
 
+class ResearchPositionBase(BaseModel):
+    symbol: str = Field(..., min_length=1, max_length=16)
+    position_type: Literal["shares", "leaps"] = "shares"
+    role: Literal["core", "growth", "speculative", "hedge", "watchlist"] = "core"
+    theme: str | None = None
+    thesis: str | None = None
+    conviction: Literal["low", "medium", "high", "very_high"] = "medium"
+    quantity: float | None = None
+    average_cost: float | None = None
+    current_price: float | None = None
+    contracts: int | None = None
+    strike_price: float | None = None
+    expiration_date: date | None = None
+    premium_paid: float | None = None
+    current_contract_price: float | None = None
+    break_even: float | None = None
+    notes: str | None = None
+
+    @field_validator("symbol")
+    @classmethod
+    def normalize_symbol(cls, value: str) -> str:
+        return value.strip().upper()
+
+
+class ResearchPositionCreate(ResearchPositionBase):
+    pass
+
+
+class ResearchPositionUpdate(BaseModel):
+    symbol: str | None = None
+    position_type: Literal["shares", "leaps"] | None = None
+    role: Literal["core", "growth", "speculative", "hedge", "watchlist"] | None = None
+    theme: str | None = None
+    thesis: str | None = None
+    conviction: Literal["low", "medium", "high", "very_high"] | None = None
+    quantity: float | None = None
+    average_cost: float | None = None
+    current_price: float | None = None
+    contracts: int | None = None
+    strike_price: float | None = None
+    expiration_date: date | None = None
+    premium_paid: float | None = None
+    current_contract_price: float | None = None
+    break_even: float | None = None
+    notes: str | None = None
+
+    @field_validator("symbol")
+    @classmethod
+    def normalize_symbol(cls, value: str | None) -> str | None:
+        return value.strip().upper() if value else value
+
+
+class ResearchPositionRead(ResearchPositionBase, ORMModel):
+    id: int
+    market_value: float
+    cost_basis: float
+    unrealized_pnl: float
+    unrealized_pnl_pct: float | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ResearchGoalPath(BaseModel):
+    label: str
+    target_value: float
+    gap: float
+    required_return_pct: float | None
+    required_monthly_return_pct: float | None
+    months_remaining: float
+
+
+class ResearchPortfolioSummary(BaseModel):
+    current_value: float
+    cost_basis: float
+    unrealized_pnl: float
+    unrealized_pnl_pct: float | None
+    shares_value: float
+    leaps_value: float
+    leaps_exposure_pct: float
+    positions_count: int
+    goals: list[ResearchGoalPath]
+    theme_allocations: list[dict[str, Any]]
+    role_allocations: list[dict[str, Any]]
+
+
+class ResearchPortfolioDashboard(BaseModel):
+    positions: list[ResearchPositionRead]
+    summary: ResearchPortfolioSummary
+
+
 class Phase2Dashboard(BaseModel):
     focus_group: list[FocusGroupAnalysisRead]
     focus_profiles: list[FocusStockProfileRead]
