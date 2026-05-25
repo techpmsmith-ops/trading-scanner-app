@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -9,6 +11,9 @@ from app.services.auth import get_current_user
 from app.services.market_data import fetch_daily_bars, upsert_price_bars
 
 router = APIRouter(prefix="/data", tags=["market data"], dependencies=[Depends(get_current_user)])
+
+CHART_LOOKBACK_DAYS = 800
+MIN_CHART_HISTORY_DAYS = 370
 
 
 @router.post("/refresh")
@@ -31,9 +36,26 @@ def get_data(symbol: str, db: Session = Depends(get_db)):
     ticker = db.query(Ticker).filter(Ticker.symbol == symbol.upper()).one_or_none()
     if not ticker:
         raise HTTPException(status_code=404, detail="Ticker not found")
+    ensure_chart_history(db, ticker)
     return (
         db.query(PriceBar)
         .filter(PriceBar.ticker_id == ticker.id)
         .order_by(PriceBar.date.asc())
         .all()
     )
+
+
+def ensure_chart_history(db: Session, ticker: Ticker) -> None:
+    oldest = db.query(PriceBar).filter(PriceBar.ticker_id == ticker.id).order_by(PriceBar.date.asc()).first()
+    latest = db.query(PriceBar).filter(PriceBar.ticker_id == ticker.id).order_by(PriceBar.date.desc()).first()
+    today = date.today()
+    has_enough_history = oldest and oldest.date <= today - timedelta(days=MIN_CHART_HISTORY_DAYS)
+    has_recent_bar = latest and latest.date >= today - timedelta(days=7)
+    if has_enough_history and has_recent_bar:
+        return
+    try:
+        bars = fetch_daily_bars(ticker.symbol, CHART_LOOKBACK_DAYS)
+        upsert_price_bars(db, ticker, bars)
+    except Exception:
+        if not latest:
+            raise

@@ -1,5 +1,9 @@
+from datetime import date, timedelta
+
+import pandas as pd
 from fastapi.testclient import TestClient
 
+from app.models import PriceBar, Ticker
 from app.main import app
 
 
@@ -61,3 +65,51 @@ def test_performance_summary_empty_or_valid():
 
     assert response.status_code == 200
     assert "total_trades" in response.json()
+
+
+def test_price_data_backfills_chart_history(db_session, monkeypatch):
+    import app.api.data as data_api
+
+    ticker = Ticker(symbol="MU")
+    db_session.add(ticker)
+    db_session.commit()
+    for index in range(60):
+        close = 100 + index
+        db_session.add(
+            PriceBar(
+                ticker_id=ticker.id,
+                date=date.today() - timedelta(days=59 - index),
+                open=close - 1,
+                high=close + 1,
+                low=close - 2,
+                close=close,
+                adjusted_close=close,
+                volume=1_000_000,
+            )
+        )
+    db_session.commit()
+
+    start = date.today() - timedelta(days=520)
+    backfilled = pd.DataFrame(
+        [
+            {
+                "date": start + timedelta(days=index),
+                "open": 50 + index,
+                "high": 51 + index,
+                "low": 49 + index,
+                "close": 50 + index,
+                "adjusted_close": 50 + index,
+                "volume": 1_000_000 + index,
+            }
+            for index in range(420)
+        ]
+    )
+    monkeypatch.setattr(data_api, "fetch_daily_bars", lambda symbol, lookback_days=800: backfilled)
+
+    with TestClient(app) as client:
+        response = client.get("/data/MU")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload[0]["date"] <= str(date.today() - timedelta(days=365))
+    assert len(payload) >= 420

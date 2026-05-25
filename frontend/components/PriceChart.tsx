@@ -95,18 +95,22 @@ function filterBars(bars: PriceBar[], period: PeriodKey) {
   if (period === "ALL") return sorted;
   if (!sorted.length) return [];
 
-  const lastDate = new Date(sorted[sorted.length - 1].date);
+  const lastDate = parseBarDate(sorted[sorted.length - 1].date);
   let startDate: Date;
   if (period === "YTD") {
-    startDate = new Date(lastDate.getFullYear(), 0, 1);
+    startDate = new Date(Date.UTC(lastDate.getUTCFullYear(), 0, 1));
   } else {
-    const days = period === "1M" ? 31 : period === "3M" ? 93 : 366;
+    const months = period === "1M" ? 1 : period === "3M" ? 3 : 12;
     startDate = new Date(lastDate);
-    startDate.setDate(startDate.getDate() - days);
+    startDate.setUTCMonth(startDate.getUTCMonth() - months);
   }
 
-  const filtered = sorted.filter((bar) => new Date(bar.date) >= startDate);
+  const filtered = sorted.filter((bar) => parseBarDate(bar.date) >= startDate);
   return filtered.length >= 2 ? filtered : sorted.slice(-Math.min(sorted.length, 2));
+}
+
+function parseBarDate(value: string) {
+  return new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
 }
 
 function percentMove(first: number, last: number) {
