@@ -447,7 +447,12 @@ function clientAuthToken() {
 
 export function currency(value?: number | null) {
   if (value === null || value === undefined) return "-";
-  return `$${value.toFixed(2)}`;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 export function number(value?: number | string | null, digits = 2) {
