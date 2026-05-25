@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import datetime
 
+from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
 from app.config import FOCUS_GROUP_SYMBOLS
@@ -200,6 +201,8 @@ MODULES = [
 
 
 def ensure_default_intelligence_watchlist(db: Session) -> None:
+    if not _watchlist_table_exists(db):
+        return
     existing = {row.symbol for row in db.query(IntelligenceWatchlistSymbol).all()}
     for symbol in FOCUS_GROUP_SYMBOLS:
         defaults = INITIAL_WATCHLIST.get(symbol, {"themes": ["advanced technology"], "thesis": "Dynamic focus-group symbol."})
@@ -218,8 +221,14 @@ def ensure_default_intelligence_watchlist(db: Session) -> None:
     db.commit()
 
 
+def _watchlist_table_exists(db: Session) -> bool:
+    return inspect(db.get_bind()).has_table(IntelligenceWatchlistSymbol.__tablename__)
+
+
 def list_watchlist(db: Session, include_inactive: bool = False) -> list[IntelligenceWatchlistSymbol]:
     ensure_default_intelligence_watchlist(db)
+    if not _watchlist_table_exists(db):
+        return []
     query = db.query(IntelligenceWatchlistSymbol)
     if not include_inactive:
         query = query.filter(IntelligenceWatchlistSymbol.active.is_(True))
