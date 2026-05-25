@@ -32,13 +32,15 @@ export function PriceChart({ bars }: { bars: PriceBar[] }) {
   const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
   const first = data[0];
   const last = data[data.length - 1];
+  const movePct = percentMove(first.close, last.close);
+  const moveIsPositive = movePct >= 0;
 
   return (
     <div className="rounded-md border border-border bg-panel p-4">
       <div className="mb-3 flex flex-col gap-3 text-sm md:flex-row md:items-center md:justify-between">
         <span className="text-muted">{PERIODS.find((item) => item.key === period)?.label} daily closes</span>
-        <span className={last.close >= first.close ? "text-positive" : "text-danger"}>
-          ${first.close.toFixed(2)} to ${last.close.toFixed(2)}
+        <span className={moveIsPositive ? "text-positive" : "text-danger"}>
+          ${first.close.toFixed(2)} to ${last.close.toFixed(2)} ({formatPercent(movePct)})
         </span>
       </div>
       <div className="mb-4 flex flex-wrap gap-2">
@@ -105,4 +107,14 @@ function filterBars(bars: PriceBar[], period: PeriodKey) {
 
   const filtered = sorted.filter((bar) => new Date(bar.date) >= startDate);
   return filtered.length >= 2 ? filtered : sorted.slice(-Math.min(sorted.length, 2));
+}
+
+function percentMove(first: number, last: number) {
+  if (!Number.isFinite(first) || first === 0) return 0;
+  return ((last - first) / first) * 100;
+}
+
+function formatPercent(value: number) {
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}%`;
 }

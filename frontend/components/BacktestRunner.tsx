@@ -220,7 +220,10 @@ function EquityCurve({ result }: { result: BacktestResult }) {
   const x = (index: number) => (points.length === 1 ? 0 : (index / (points.length - 1)) * width);
   const y = (value: number) => height - ((value - min) / Math.max(max - min, 1)) * height;
   const pathFor = (key: "equity" | "benchmark_equity") => points.map((point, index) => `${index === 0 ? "M" : "L"} ${x(index).toFixed(2)} ${y(point[key]).toFixed(2)}`).join(" ");
+  const first = points[0];
   const last = points[points.length - 1];
+  const strategyMove = percentMove(first.equity, last.equity);
+  const benchmarkMove = percentMove(first.benchmark_equity, last.benchmark_equity);
 
   return (
     <div className="mt-4">
@@ -231,10 +234,24 @@ function EquityCurve({ result }: { result: BacktestResult }) {
         </svg>
       </div>
       <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted">
-        <span className="inline-flex items-center gap-1"><LineChart size={14} className="text-positive" /> Strategy {currency(last.equity)}</span>
-        <span>Benchmark {currency(last.benchmark_equity)}</span>
+        <span className={`inline-flex items-center gap-1 ${strategyMove >= 0 ? "text-positive" : "text-negative"}`}>
+          <LineChart size={14} /> Strategy {currency(last.equity)} ({formatPercent(strategyMove)})
+        </span>
+        <span className={benchmarkMove >= 0 ? "text-positive" : "text-negative"}>
+          Benchmark {currency(last.benchmark_equity)} ({formatPercent(benchmarkMove)})
+        </span>
         <span>{points[0].date} to {last.date}</span>
       </div>
     </div>
   );
+}
+
+function percentMove(first: number, last: number) {
+  if (!Number.isFinite(first) || first === 0) return 0;
+  return ((last - first) / first) * 100;
+}
+
+function formatPercent(value: number) {
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}%`;
 }

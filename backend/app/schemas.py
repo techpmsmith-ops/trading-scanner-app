@@ -346,6 +346,103 @@ class Phase2Dashboard(BaseModel):
     prediction_symbols: list[str]
 
 
+class IntelligenceWatchlistCreate(BaseModel):
+    symbol: str = Field(..., min_length=1, max_length=16)
+    company_name: str | None = None
+    priority: Literal["core", "high", "emerging", "monitor"] = "core"
+    active: bool = True
+    themes: list[str] = []
+    thesis: str | None = None
+    data_sources: list[str] = []
+    notes: str | None = None
+
+    @field_validator("symbol")
+    @classmethod
+    def normalize_symbol(cls, value: str) -> str:
+        return value.strip().upper()
+
+
+class IntelligenceWatchlistUpdate(BaseModel):
+    company_name: str | None = None
+    priority: Literal["core", "high", "emerging", "monitor"] | None = None
+    active: bool | None = None
+    themes: list[str] | None = None
+    thesis: str | None = None
+    data_sources: list[str] | None = None
+    notes: str | None = None
+
+
+class IntelligenceWatchlistRead(IntelligenceWatchlistCreate, ORMModel):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class IntelligenceModuleStatus(BaseModel):
+    key: str
+    name: str
+    phase: int
+    status: str
+    responsibilities: list[str]
+    data_sources: list[str]
+    output_feeds: list[str]
+
+
+class IntelligenceOpportunity(BaseModel):
+    symbol: str
+    bias: str
+    conviction_score: float
+    asymmetric_score: float
+    momentum_score: float
+    risk_score: float
+    ai_relevance_score: float
+    institutional_interest_score: float
+    time_horizon: str
+    catalysts: list[str]
+    risks: list[str]
+    action: str
+
+
+class IntelligenceThemeTrend(BaseModel):
+    theme: str
+    strength: float
+    symbol_count: int
+    leaders: list[str]
+    summary: str
+
+
+class AgentScenarioResult(BaseModel):
+    scenario: str
+    probability: float
+    expected_reaction: str
+    vulnerable_symbols: list[str]
+    likely_beneficiaries: list[str]
+    confidence_adjustment: float
+    risk_adjustment: float
+    agent_consensus: dict[str, str]
+
+
+class IntelligenceRiskOverview(BaseModel):
+    regime: str
+    portfolio_concentration: str
+    crowded_trade_risk: str
+    fragile_setups: list[str]
+    notes: list[str]
+
+
+class IntelligenceDashboard(BaseModel):
+    generated_at: datetime
+    mission: str
+    modules: list[IntelligenceModuleStatus]
+    watchlist: list[IntelligenceWatchlistRead]
+    opportunities: list[IntelligenceOpportunity]
+    theme_trends: list[IntelligenceThemeTrend]
+    simulations: list[AgentScenarioResult]
+    prediction_accuracy: dict[str, Any]
+    risk_overview: IntelligenceRiskOverview
+    next_actions: list[str]
+
+
 class FocusExplainRequest(BaseModel):
     question: str | None = None
 

@@ -207,6 +207,21 @@ class FocusStockProfile(Base, TimestampMixin):
     accuracy_stats: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
+class IntelligenceWatchlistSymbol(Base, TimestampMixin):
+    __tablename__ = "intelligence_watchlist_symbols"
+    __table_args__ = (UniqueConstraint("symbol", name="uq_intelligence_watchlist_symbols_symbol"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    symbol: Mapped[str] = mapped_column(String(16), index=True)
+    company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    priority: Mapped[str] = mapped_column(String(20), default="core")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    themes: Mapped[list] = mapped_column(JSON, default=list)
+    thesis: Mapped[str | None] = mapped_column(Text, nullable=True)
+    data_sources: Mapped[list] = mapped_column(JSON, default=list)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class ScoringWeight(Base):
     __tablename__ = "scoring_weights"
 

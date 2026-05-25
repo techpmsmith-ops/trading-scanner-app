@@ -150,6 +150,83 @@ export type Phase2Dashboard = {
   prediction_symbols: string[];
 };
 
+export type IntelligenceWatchlistSymbol = {
+  id: number;
+  symbol: string;
+  company_name: string | null;
+  priority: "core" | "high" | "emerging" | "monitor";
+  active: boolean;
+  themes: string[];
+  thesis: string | null;
+  data_sources: string[];
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type IntelligenceModuleStatus = {
+  key: string;
+  name: string;
+  phase: number;
+  status: string;
+  responsibilities: string[];
+  data_sources: string[];
+  output_feeds: string[];
+};
+
+export type IntelligenceOpportunity = {
+  symbol: string;
+  bias: string;
+  conviction_score: number;
+  asymmetric_score: number;
+  momentum_score: number;
+  risk_score: number;
+  ai_relevance_score: number;
+  institutional_interest_score: number;
+  time_horizon: string;
+  catalysts: string[];
+  risks: string[];
+  action: string;
+};
+
+export type IntelligenceThemeTrend = {
+  theme: string;
+  strength: number;
+  symbol_count: number;
+  leaders: string[];
+  summary: string;
+};
+
+export type AgentScenarioResult = {
+  scenario: string;
+  probability: number;
+  expected_reaction: string;
+  vulnerable_symbols: string[];
+  likely_beneficiaries: string[];
+  confidence_adjustment: number;
+  risk_adjustment: number;
+  agent_consensus: Record<string, string>;
+};
+
+export type IntelligenceDashboard = {
+  generated_at: string;
+  mission: string;
+  modules: IntelligenceModuleStatus[];
+  watchlist: IntelligenceWatchlistSymbol[];
+  opportunities: IntelligenceOpportunity[];
+  theme_trends: IntelligenceThemeTrend[];
+  simulations: AgentScenarioResult[];
+  prediction_accuracy: Record<string, any>;
+  risk_overview: {
+    regime: string;
+    portfolio_concentration: string;
+    crowded_trade_risk: string;
+    fragile_setups: string[];
+    notes: string[];
+  };
+  next_actions: string[];
+};
+
 export type FocusGroupAnalysis = {
   id: number;
   analysis_date: string;

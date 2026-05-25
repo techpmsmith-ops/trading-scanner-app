@@ -1,5 +1,88 @@
 # Progress Handoff
 
+## Tech Debt Backlog - 2026-05-25
+
+Backend tests are passing, but pytest currently emits non-blocking deprecation warnings that should be cleaned up during production hardening:
+
+- Migrate FastAPI startup/shutdown hooks in `backend/app/main.py` from `@app.on_event(...)` to a lifespan handler.
+- Replace naive `datetime.utcnow()` usage with timezone-aware UTC timestamps, reviewing SQLAlchemy/Pydantic serialization before changing persisted timestamp behavior.
+- Leave the Starlette `python_multipart` warning alone unless dependency upgrades make it actionable; it is emitted by a dependency import path, not app code.
+
+Current verification after installing dependencies into the bundled Python 3.12 runtime:
+
+```text
+PYTHONPATH=backend python -m pytest backend/app/tests
+=> 22 passed
+```
+
+## Local Intelligence Testing Handoff - 2026-05-25
+
+The AI Infrastructure Market Intelligence work is implemented locally and the user confirmed they could log in and reach `/intelligence`.
+
+Added locally:
+
+- Backend `/intelligence/dashboard` and `/intelligence/watchlist` routes.
+- Dynamic `intelligence_watchlist_symbols` table and Alembic migration:
+  - `backend/alembic/versions/20260525_0007_market_intelligence.py`
+- Seeded Focus Group / AI infrastructure watchlist:
+  - `INTC`, `NVDA`, `AMD`, `IONQ`, `NVTS`, `RVI`, `SMCI`, `RGTI`, `RKLB`, `MU`
+- New service:
+  - `backend/app/services/intelligence.py`
+- New frontend page:
+  - `frontend/app/intelligence/page.tsx`
+- Nav link:
+  - `Intelligence`
+- Previous chart percentage labels are still included in the working tree.
+
+Local testing state:
+
+```text
+Backend: http://127.0.0.1:8000
+Frontend: http://localhost:3000
+Intelligence page: http://localhost:3000/intelligence
+```
+
+Local DB migration was applied:
+
+```powershell
+cd backend
+$env:PYTHONPATH="."
+C:\Users\techp\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m alembic upgrade head
+```
+
+Backend dependency install/testing used the bundled Python 3.12 runtime because the default Python 3.13 could not install the pinned pandas wheel cleanly:
+
+```powershell
+C:\Users\techp\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pip install -r backend\requirements.txt
+$env:PYTHONPATH='backend'
+C:\Users\techp\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest backend\app\tests
+```
+
+Result:
+
+```text
+22 passed
+```
+
+Local admin account was created because `backend/trading_scanner.db` had no users.
+
+Important: the temporary local password was exposed during local testing. Do not reuse it for hosted/production. Replace it before any deployment or shared testing.
+
+Runtime note:
+
+- A stale/hung Next dev process on port `3000` briefly caused `ERR_CONNECTION_REFUSED` / hanging requests.
+- Windows denied termination of PID `2240`, but the existing dev server eventually responded and redirected `/intelligence` to login.
+- If this recurs, restart the machine or manually stop the stale Node/Next process, then start fresh:
+
+```powershell
+cd backend
+$env:PYTHONPATH="."
+C:\Users\techp\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m uvicorn app.main:app --reload
+
+cd frontend
+npm.cmd run dev
+```
+
 ## Latest Hosted Deployment Handoff - 2026-05-16
 
 We started the first real hosted deployment flow using:

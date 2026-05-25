@@ -5,10 +5,11 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, backtests, data, journal, performance, phase2, scanner, tickers
-from app.config import ALLOWED_ORIGINS, APP_ENV, AUTO_CREATE_TABLES, DATABASE_URL, DEBUG, DEFAULT_UNIVERSE, validate_runtime_config
+from app.api import auth, backtests, data, intelligence, journal, performance, phase2, scanner, tickers
+from app.config import ALLOWED_ORIGINS, APP_ENV, AUTO_CREATE_TABLES, DATABASE_URL, DEBUG, DEFAULT_UNIVERSE, FOCUS_GROUP_SYMBOLS, validate_runtime_config
 from app.database import SessionLocal, init_db
 from app.services.logging import log_event, log_exception
+from app.services.intelligence import ensure_default_intelligence_watchlist
 from app.services.phase2 import run_morning_phase2_pipeline
 from app.services.scanner_engine import ScannerAlreadyRunning, ensure_default_universe, run_scanner
 
@@ -31,6 +32,7 @@ app.include_router(data.router)
 app.include_router(scanner.router)
 app.include_router(journal.router)
 app.include_router(performance.router)
+app.include_router(intelligence.router)
 app.include_router(phase2.router)
 app.include_router(backtests.router)
 
@@ -68,7 +70,8 @@ def on_startup():
         init_db()
     db = SessionLocal()
     try:
-        ensure_default_universe(db, DEFAULT_UNIVERSE)
+        ensure_default_universe(db, list(dict.fromkeys([*DEFAULT_UNIVERSE, *FOCUS_GROUP_SYMBOLS])))
+        ensure_default_intelligence_watchlist(db)
     finally:
         db.close()
     if not scheduler.running:

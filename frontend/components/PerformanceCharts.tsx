@@ -22,13 +22,14 @@ export function PerformanceCharts({ entries }: { entries: JournalEntry[] }) {
         <div className="space-y-3">
           {outcomes.map((item) => {
             const max = Math.max(...outcomes.map((outcome) => outcome.count), 1);
+            const percent = closed.length ? Math.round((item.count / closed.length) * 100) : 0;
             return (
-              <div key={item.name} className="grid grid-cols-[78px_1fr_30px] items-center gap-3 text-sm">
+              <div key={item.name} className="grid grid-cols-[78px_1fr_62px] items-center gap-3 text-sm">
                 <span>{item.name}</span>
                 <div className="h-3 rounded bg-panelSoft">
                   <div className="h-3 rounded" style={{ width: `${(item.count / max) * 100}%`, backgroundColor: item.color }} />
                 </div>
-                <span className="text-right">{item.count}</span>
+                <span className="text-right">{item.count} ({percent}%)</span>
               </div>
             );
           })}

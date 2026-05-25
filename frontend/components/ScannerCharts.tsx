@@ -18,7 +18,7 @@ export function ScannerCharts({ results }: { results: ScanResult[] }) {
               <div className="h-3 rounded bg-panelSoft">
                 <div className="h-3 rounded bg-positive" style={{ width: `${Math.min(result.score_total, 100)}%` }} />
               </div>
-              <span className="text-right text-positive">{result.score_total}</span>
+              <span className="text-right text-positive">{result.score_total}%</span>
             </div>
           ))}
         </div>
@@ -33,7 +33,7 @@ export function ScannerCharts({ results }: { results: ScanResult[] }) {
                 <div key={item.setup}>
                   <div className="mb-1 flex justify-between text-xs text-muted">
                     <span>{item.setup}</span>
-                    <span>{item.count}</span>
+                    <span>{item.count} ({percent}%)</span>
                   </div>
                   <div className="h-3 rounded bg-panelSoft">
                     <div className="h-3 rounded" style={{ width: `${Math.max(percent, 5)}%`, backgroundColor: SETUP_COLORS[index % SETUP_COLORS.length] }} />

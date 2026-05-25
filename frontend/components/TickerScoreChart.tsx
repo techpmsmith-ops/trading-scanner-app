@@ -17,7 +17,7 @@ export function TickerScoreChart({ result }: { result: ScanResult }) {
           <div key={item.name}>
             <div className="mb-1 flex justify-between text-xs text-muted">
               <span>{item.name}</span>
-              <span>{item.value}/{item.max}</span>
+              <span>{item.value}/{item.max} ({percent}%)</span>
             </div>
             <div className="h-3 rounded bg-panelSoft">
               <div className="h-3 rounded bg-[#5aa7ff]" style={{ width: `${Math.min(percent, 100)}%` }} />
