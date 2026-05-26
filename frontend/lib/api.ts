@@ -17,6 +17,7 @@ export type ScanResult = {
   score_volume: number;
   score_risk: number;
   score_setup_quality: number;
+  score_kronos: number;
   setup_types: string[];
   risk_flags: string[];
   indicators: Record<string, number | string | null>;
@@ -26,6 +27,16 @@ export type ScanResult = {
   target_2: number | null;
   risk_reward: number | null;
   explanation: string;
+  kronos_enabled: boolean;
+  kronos_model_name: string | null;
+  kronos_bias: string | null;
+  kronos_confidence: number | null;
+  kronos_expected_range_low: number | null;
+  kronos_expected_range_high: number | null;
+  kronos_volatility_estimate: number | null;
+  kronos_summary: string | null;
+  kronos_raw_output_json: Record<string, any> | null;
+  kronos_error: string | null;
   created_at: string;
 };
 
@@ -253,6 +264,7 @@ export type FocusGroupAnalysis = {
   relevance: Record<string, any>;
   news_sentiment_score: number | null;
   news_sentiment_label: string | null;
+  kronos: Record<string, any> | null;
   summary: string;
   created_at: string;
 };

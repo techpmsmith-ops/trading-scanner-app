@@ -63,6 +63,7 @@ class ScanResultRead(ORMModel):
     score_volume: int
     score_risk: int
     score_setup_quality: int
+    score_kronos: int = 0
     setup_types: list[str]
     risk_flags: list[str]
     indicators: dict[str, Any]
@@ -72,6 +73,16 @@ class ScanResultRead(ORMModel):
     target_2: float | None
     risk_reward: float | None
     explanation: str
+    kronos_enabled: bool = False
+    kronos_model_name: str | None = None
+    kronos_bias: str | None = None
+    kronos_confidence: float | None = None
+    kronos_expected_range_low: float | None = None
+    kronos_expected_range_high: float | None = None
+    kronos_volatility_estimate: float | None = None
+    kronos_summary: str | None = None
+    kronos_raw_output_json: dict[str, Any] | None = None
+    kronos_error: str | None = None
     created_at: datetime
 
 
@@ -299,8 +310,33 @@ class FocusGroupAnalysisRead(ORMModel):
     relevance: dict[str, Any]
     news_sentiment_score: float | None
     news_sentiment_label: str | None
+    kronos: dict[str, Any] | None = None
     summary: str
     created_at: datetime
+
+
+class KronosHealthRead(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+    enabled: bool
+    model_name: str
+    tokenizer_name: str
+    device: str
+    model_loaded: bool
+    errors: list[str]
+
+
+class KronosForecastApiRequest(BaseModel):
+    symbol: str
+    timeframe: str = "1d"
+    bars: list[dict[str, Any]] | None = None
+    fetch_from_polygon: bool = False
+    forecast_bars: int | None = Field(None, ge=1, le=120)
+
+    @field_validator("symbol")
+    @classmethod
+    def normalize_forecast_symbol(cls, value: str) -> str:
+        return value.strip().upper()
 
 
 class FocusStockProfileRead(ORMModel):
