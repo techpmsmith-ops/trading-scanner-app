@@ -34,7 +34,7 @@ def upgrade() -> None:
         if name not in scan_columns:
             op.add_column("scan_results", column)
     op.execute("UPDATE scan_results SET score_kronos = 0 WHERE score_kronos IS NULL")
-    op.execute("UPDATE scan_results SET kronos_enabled = 0 WHERE kronos_enabled IS NULL")
+    op.execute(sa.text("UPDATE scan_results SET kronos_enabled = false WHERE kronos_enabled IS NULL"))
 
     focus_columns = {column["name"] for column in sa.inspect(op.get_bind()).get_columns("focus_group_analyses")}
     if "kronos" not in focus_columns:
