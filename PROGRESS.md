@@ -8,7 +8,7 @@ Current production posture:
 
 - Kronos defaults to enabled.
 - Kronos only runs for `FOCUS_GROUP_SYMBOLS`.
-- Kronos is capped at `KRONOS_MAX_SYMBOLS_PER_RUN=5`.
+- Kronos is capped at `KRONOS_MAX_SYMBOLS_PER_RUN=10`, matching the current Focus Group size.
 - Kronos score remains bounded by `KRONOS_WEIGHT=0.20`.
 - Render env vars were added by the user.
 - Render migration `20260526_0010_kronos_integration.py` has been applied successfully.

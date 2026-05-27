@@ -235,7 +235,7 @@ KRONOS_TOKENIZER_NAME=NeoQuasar/Kronos-Tokenizer-2k
 KRONOS_DEVICE=auto
 KRONOS_LOOKBACK_BARS=120
 KRONOS_FORECAST_BARS=5
-KRONOS_MAX_SYMBOLS_PER_RUN=5
+KRONOS_MAX_SYMBOLS_PER_RUN=10
 KRONOS_TIMEOUT_SECONDS=60
 KRONOS_BULLISH_THRESHOLD_PCT=1.5
 KRONOS_BEARISH_THRESHOLD_PCT=-1.5
@@ -546,7 +546,7 @@ Phase 2 adds richer decision-support features while keeping the app private and 
 
 ## Kronos Forecasting
 
-Kronos is an open-source foundation model for financial K-line/OHLCV sequences. In this app it is a modular forecasting layer, not a replacement scanner and not a final trade decision engine. Kronos runs against the Focus Group symbols, capped by `KRONOS_MAX_SYMBOLS_PER_RUN`, and contributes a bounded signal to the scanner score.
+Kronos is an open-source foundation model for financial K-line/OHLCV sequences. In this app it is a modular forecasting layer, not a replacement scanner and not a final trade decision engine. Kronos runs against the Focus Group symbols, capped by `KRONOS_MAX_SYMBOLS_PER_RUN`, and contributes a bounded signal to the scanner score. The default cap is 10, matching the current Focus Group size.
 
 Kronos is checked out under `external/Kronos`. The lightweight default is:
 
@@ -572,7 +572,7 @@ Run Kronos for the Focus Group:
 ```text
 KRONOS_ENABLED=true
 KRONOS_DEVICE=auto
-KRONOS_MAX_SYMBOLS_PER_RUN=5
+KRONOS_MAX_SYMBOLS_PER_RUN=10
 ```
 
 Turn it off:
