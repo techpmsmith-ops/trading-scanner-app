@@ -212,6 +212,8 @@ def focus_explanation_context(db: Session, symbol: str) -> dict:
     profile = db.query(FocusStockProfile).filter(FocusStockProfile.symbol == normalized).one_or_none()
     latest_prediction = predictions[0] if predictions else None
     result = analysis.scan_result if analysis else latest_prediction.scan_result if latest_prediction else None
+    if analysis and _should_use_scan_kronos(analysis.kronos, result):
+        analysis.kronos = _scan_result_kronos_payload(result)
     news_summary = {
         "sentiment_score": analysis.news_sentiment_score if analysis else latest_prediction.news_sentiment_score if latest_prediction else None,
         "sentiment_label": analysis.news_sentiment_label if analysis else latest_prediction.news_sentiment_label if latest_prediction else None,
@@ -709,6 +711,34 @@ def _focus_kronos_signal(symbol: str, bars: list[PriceBar]) -> dict | None:
     )
     signal = forecast_signal(symbol, "1d", data)
     return signal.model_dump(mode="json")
+
+
+def _should_use_scan_kronos(focus_kronos: dict | None, result: ScanResult | None) -> bool:
+    if not result or not result.kronos_enabled or not result.kronos_bias or result.kronos_bias == "unavailable":
+        return False
+    if not focus_kronos:
+        return True
+    focus_bias = focus_kronos.get("kronos_bias") or focus_kronos.get("predicted_direction")
+    focus_error = focus_kronos.get("error") or (focus_kronos.get("forecast") or {}).get("error")
+    return focus_bias in {None, "unavailable"} or bool(focus_error)
+
+
+def _scan_result_kronos_payload(result: ScanResult) -> dict:
+    return {
+        "source": "scanner_result",
+        "kronos_enabled": result.kronos_enabled,
+        "kronos_model_name": result.kronos_model_name,
+        "kronos_bias": result.kronos_bias,
+        "kronos_confidence": result.kronos_confidence,
+        "kronos_expected_range": {
+            "low": result.kronos_expected_range_low,
+            "high": result.kronos_expected_range_high,
+        },
+        "kronos_volatility_estimate": result.kronos_volatility_estimate,
+        "kronos_summary": result.kronos_summary,
+        "kronos_error": result.kronos_error,
+        "forecast": result.kronos_raw_output_json or {},
+    }
 
 
 def _morning_alert_message(focus_rows: list[FocusGroupAnalysis], top_five: list[DailyRecommendation]) -> str:

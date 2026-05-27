@@ -481,5 +481,8 @@ export function number(value?: number | string | null, digits = 2) {
 
 export function dateTime(value?: string | null) {
   if (!value) return "-";
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    timeZoneName: "short",
+  });
 }

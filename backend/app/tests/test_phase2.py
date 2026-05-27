@@ -1,8 +1,8 @@
 from datetime import date, timedelta
 
 from app.config import FOCUS_GROUP_SYMBOLS
-from app.models import PriceBar, ScanResult, ScanRun, Ticker, WeeklyPrediction
-from app.services.phase2 import adjust_scoring_weights, build_weekly_evaluation_report, current_week_bounds, generate_daily_top_five, generate_focus_group_analysis, generate_weekly_predictions, regenerate_current_week_predictions
+from app.models import FocusGroupAnalysis, PriceBar, ScanResult, ScanRun, Ticker, WeeklyPrediction
+from app.services.phase2 import adjust_scoring_weights, build_weekly_evaluation_report, current_week_bounds, focus_explanation_context, generate_daily_top_five, generate_focus_group_analysis, generate_weekly_predictions, regenerate_current_week_predictions
 
 
 def test_daily_top_five_generates_from_latest_scan(db_session):
@@ -155,3 +155,62 @@ def test_focus_group_analysis_generates_deeper_daily_rows(db_session, monkeypatc
     assert rows[0].symbol == "NVDA"
     assert rows[0].bias in {"bullish", "bearish", "neutral"}
     assert rows[0].support_resistance["method"] == "20-bar high/low"
+
+
+def test_focus_context_uses_scan_kronos_when_focus_kronos_is_stale(db_session):
+    ticker = Ticker(symbol="MU")
+    run = ScanRun(run_date=date.today(), status="completed", universe_count=1, result_count=1)
+    db_session.add_all([ticker, run])
+    db_session.commit()
+    result = ScanResult(
+        scan_run_id=run.id,
+        ticker_id=ticker.id,
+        symbol="MU",
+        close_price=900,
+        score_total=85,
+        score_trend=25,
+        score_momentum=20,
+        score_volume=15,
+        score_risk=15,
+        score_setup_quality=10,
+        setup_types=["Momentum Strength"],
+        risk_flags=[],
+        indicators={},
+        explanation="Test",
+        kronos_enabled=True,
+        kronos_model_name="NeoQuasar/Kronos-mini",
+        kronos_bias="bullish",
+        kronos_confidence=77,
+        kronos_expected_range_low=880,
+        kronos_expected_range_high=940,
+        kronos_raw_output_json={"forecast_horizon": 5},
+    )
+    db_session.add(result)
+    db_session.commit()
+    db_session.add(
+        FocusGroupAnalysis(
+            analysis_date=date.today(),
+            symbol="MU",
+            scan_run_id=run.id,
+            scan_result_id=result.id,
+            bias="neutral",
+            confidence=0.25,
+            current_technical_setup="Test",
+            key_catalyst="Test",
+            risk_level="low",
+            suggested_watch_action="Watch",
+            indicators={},
+            support_resistance={},
+            catalysts={},
+            relevance={},
+            kronos={"kronos_bias": "unavailable", "kronos_error": "No module named 'torch'"},
+            summary="Test",
+        )
+    )
+    db_session.commit()
+
+    context = focus_explanation_context(db_session, "MU")
+
+    assert context["latest_analysis"].kronos["source"] == "scanner_result"
+    assert context["latest_analysis"].kronos["kronos_bias"] == "bullish"
+    assert context["latest_analysis"].kronos["kronos_expected_range"]["high"] == 940
