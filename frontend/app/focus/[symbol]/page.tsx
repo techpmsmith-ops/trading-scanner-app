@@ -18,6 +18,7 @@ export default async function FocusSymbolPage({ params }: { params: Promise<{ sy
   }
   const normalizedSymbol = context?.symbol || symbol.toUpperCase();
   const analysis = context?.latest_analysis;
+  const kronos = analysis?.kronos || null;
   let bars: PriceBar[] = [];
   try {
     bars = await api<PriceBar[]>(`/data/${normalizedSymbol}`, { headers });
@@ -87,13 +88,27 @@ export default async function FocusSymbolPage({ params }: { params: Promise<{ sy
         </Panel>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid gap-4 lg:grid-cols-3">
         <Panel title="Current Setup">
           <Fact label="Technical setup" value={analysis.current_technical_setup} />
           <Fact label="Key catalyst" value={analysis.key_catalyst} />
           <Fact label="Watch action" value={analysis.suggested_watch_action} />
           <Fact label="News sentiment" value={`${analysis.news_sentiment_label || "-"} (${number(analysis.news_sentiment_score, 3)})`} />
           <div className="mt-3 flex flex-wrap gap-1">{(analysis.relevance.tags || []).map((tag: string) => <StatusPill key={tag} value={tag} />)}</div>
+        </Panel>
+        <Panel title="Kronos Forecast">
+          {kronos ? (
+            <>
+              <Fact label="Bias" value={titleCase(kronos.kronos_bias || kronos.predicted_direction || "unavailable")} />
+              <Fact label="Confidence" value={kronos.kronos_confidence === null || kronos.kronos_confidence === undefined ? "-" : `${number(kronos.kronos_confidence, 0)}/100`} />
+              <Fact label="Model" value={kronos.kronos_model_name || kronos.model_name || "-"} />
+              <Fact label="Expected low" value={currency(kronos.kronos_expected_range?.low ?? kronos.predicted_high_low_range?.low)} />
+              <Fact label="Expected high" value={currency(kronos.kronos_expected_range?.high ?? kronos.predicted_high_low_range?.high)} />
+              <Fact label="Horizon" value={kronos.forecast?.forecast_horizon || kronos.forecast_horizon ? `${kronos.forecast?.forecast_horizon || kronos.forecast_horizon} bars` : "-"} />
+              {kronos.kronos_summary ? <p className="mt-3 text-sm text-muted">{kronos.kronos_summary}</p> : null}
+              {kronos.forecast?.error || kronos.error ? <p className="mt-3 text-sm text-[#ffd88a]">{kronos.forecast?.error || kronos.error}</p> : null}
+            </>
+          ) : <p className="text-sm text-muted">Kronos has not run for this Focus Group analysis yet. Run the scanner to refresh this signal.</p>}
         </Panel>
         <Panel title="Weekly Prediction">
           {latestPrediction ? (
@@ -159,4 +174,8 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return <div className="rounded-md border border-border bg-panelSoft p-3"><div className="text-xs uppercase text-muted">{label}</div><div className="mt-1 text-lg font-semibold">{value}</div></div>;
+}
+
+function titleCase(value: string) {
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
