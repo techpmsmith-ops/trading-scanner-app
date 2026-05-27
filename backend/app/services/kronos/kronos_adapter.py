@@ -55,11 +55,6 @@ def validate_ohlcv(bars: list[KronosBar], lookback_bars: int = KRONOS_LOOKBACK_B
 
 
 def unavailable_result(symbol: str, timeframe: str, model_name: str, error: str, warnings: list[str] | None = None) -> KronosForecastResult:
-    raw_rows = prediction.reset_index().copy()
-    raw_rows = raw_rows.rename(columns={"index": "timestamp"})
-    for column in raw_rows.columns:
-        if "time" in str(column).lower() or str(column) == "timestamp":
-            raw_rows[column] = raw_rows[column].astype(str)
     return KronosForecastResult(
         symbol=symbol,
         timeframe=timeframe,
@@ -95,5 +90,16 @@ def build_result_from_prediction(symbol: str, timeframe: str, model_name: str, i
         model_name=model_name,
         lookback_bars_used=len(input_bars),
         created_at=datetime.utcnow(),
-        raw_output={"columns": list(prediction.columns), "rows": raw_rows.to_dict("records")},
+        raw_output=_prediction_raw_output(prediction),
     )
+
+
+def _prediction_raw_output(prediction: pd.DataFrame) -> dict:
+    if "timestamp" in prediction.columns:
+        raw_rows = prediction.copy()
+    else:
+        raw_rows = prediction.reset_index().rename(columns={"index": "timestamp"})
+    for column in raw_rows.columns:
+        if "time" in str(column).lower() or str(column) == "timestamp":
+            raw_rows[column] = raw_rows[column].astype(str)
+    return {"columns": list(prediction.columns), "rows": raw_rows.to_dict("records")}

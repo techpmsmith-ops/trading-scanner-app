@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.models import KronosPredictionEvaluation, PriceBar, ScanResult, ScanRun, Ticker
-from app.services.kronos.kronos_adapter import dataframe_to_kronos_bars, validate_ohlcv
+from app.services.kronos.kronos_adapter import build_result_from_prediction, dataframe_to_kronos_bars, unavailable_result, validate_ohlcv
 from app.services.kronos.kronos_schema import KronosForecastResult, KronosSignal
 from app.services.kronos.kronos_signal_mapper import direction_from_path, map_forecast_to_signal
 
@@ -46,6 +46,25 @@ def test_unavailable_signal_is_safe():
     signal = map_forecast_to_signal(forecast, 100)
     assert signal.kronos_bias == "unavailable"
     assert signal.kronos_confidence == 0
+
+
+def test_unavailable_result_is_safe():
+    forecast = unavailable_result("NVDA", "1d", "mock", "model failed")
+    assert forecast.predicted_direction == "unavailable"
+    assert forecast.error == "model failed"
+
+
+def test_build_result_includes_raw_prediction(sample_bars):
+    bars = dataframe_to_kronos_bars(sample_bars.tail(120))
+    prediction = pd.DataFrame(
+        [
+            {"timestamp": "2026-01-01", "open": 100, "high": 102, "low": 99, "close": 101, "volume": 1000},
+            {"timestamp": "2026-01-02", "open": 101, "high": 103, "low": 100, "close": 102, "volume": 1100},
+        ]
+    )
+    forecast = build_result_from_prediction("NVDA", "1d", "mock", bars, prediction)
+    assert forecast.raw_output["columns"] == list(prediction.columns)
+    assert forecast.raw_output["rows"][0]["timestamp"] == "2026-01-01"
 
 
 def test_scanner_survives_kronos_failure(monkeypatch, sample_bars):

@@ -1,6 +1,8 @@
 .env
 .env.local
 .venv/
+.venv312/
+backend/.venv312/
 venv/
 node_modules/
 .next/

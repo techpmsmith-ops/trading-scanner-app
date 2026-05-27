@@ -61,7 +61,7 @@ pip install -r requirements.txt
 copy .env.example .env
 alembic upgrade head
 python -m app.cli create-admin --email you@example.com --password "choose-a-strong-password"
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --reload-dir app --reload-dir alembic
 ```
 
 The API runs at `http://localhost:8000`.
