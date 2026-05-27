@@ -54,7 +54,7 @@ def dashboard(db: Session = Depends(get_db)):
 
 @router.post("/focus/generate", response_model=list[FocusGroupAnalysisRead])
 def create_focus_group_analysis(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    return generate_focus_group_analysis(db)
+    return generate_focus_group_analysis(db, force=True)
 
 
 @router.get("/focus/latest", response_model=list[FocusGroupAnalysisRead])

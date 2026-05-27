@@ -211,7 +211,9 @@ def focus_explanation_context(db: Session, symbol: str) -> dict:
     )
     profile = db.query(FocusStockProfile).filter(FocusStockProfile.symbol == normalized).one_or_none()
     latest_prediction = predictions[0] if predictions else None
-    result = analysis.scan_result if analysis else latest_prediction.scan_result if latest_prediction else None
+    linked_result = analysis.scan_result if analysis else latest_prediction.scan_result if latest_prediction else None
+    latest_result = _latest_scan_result_for_symbol(db, normalized)
+    result = latest_result or linked_result
     if analysis and _should_use_scan_kronos(analysis.kronos, result):
         analysis.kronos = _scan_result_kronos_payload(result)
     news_summary = {
@@ -721,6 +723,16 @@ def _should_use_scan_kronos(focus_kronos: dict | None, result: ScanResult | None
     focus_bias = focus_kronos.get("kronos_bias") or focus_kronos.get("predicted_direction")
     focus_error = focus_kronos.get("error") or (focus_kronos.get("forecast") or {}).get("error")
     return focus_bias in {None, "unavailable"} or bool(focus_error)
+
+
+def _latest_scan_result_for_symbol(db: Session, symbol: str) -> ScanResult | None:
+    return (
+        db.query(ScanResult)
+        .join(ScanRun)
+        .filter(ScanResult.symbol == symbol)
+        .order_by(ScanRun.run_date.desc(), ScanRun.started_at.desc(), ScanResult.created_at.desc())
+        .first()
+    )
 
 
 def _scan_result_kronos_payload(result: ScanResult) -> dict:

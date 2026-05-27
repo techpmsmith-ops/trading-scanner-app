@@ -191,8 +191,8 @@ def test_focus_context_uses_scan_kronos_when_focus_kronos_is_stale(db_session):
         FocusGroupAnalysis(
             analysis_date=date.today(),
             symbol="MU",
-            scan_run_id=run.id,
-            scan_result_id=result.id,
+            scan_run_id=None,
+            scan_result_id=None,
             bias="neutral",
             confidence=0.25,
             current_technical_setup="Test",

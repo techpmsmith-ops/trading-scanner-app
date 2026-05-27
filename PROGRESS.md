@@ -24,6 +24,8 @@ bc32eba Enable Kronos for focus group by default
 856060b Show Kronos forecast on focus pages
 c6061fb Add Kronos runtime dependencies
 5750025 Use scanner Kronos data on focus pages
+44a76e8 Run Kronos for full focus group
+ab471bc Standardize Kronos forecast horizons
 ```
 
 Important fixes completed:
@@ -38,6 +40,8 @@ Important fixes completed:
 - Added `.env` loading through `python-dotenv`, so local env files now work as documented.
 - Added Focus page Kronos panel.
 - Added Focus page fallback to use linked scanner-result Kronos data when the stored Focus analysis has stale/unavailable Kronos output.
+- Updated Focus page context to use the latest scanner Kronos row by symbol, so stale same-day Focus rows do not keep showing old Kronos errors such as missing `torch`.
+- Manual Focus Group generation now forces a same-day refresh instead of returning already-stored rows.
 - Updated shared frontend `dateTime(...)` formatting to display `America/New_York` with timezone abbreviation. In May this displays `EDT`; in winter it will display `EST`.
 
 Validation completed locally:
@@ -51,7 +55,7 @@ python -m pytest app/tests/test_phase2.py app/tests/test_kronos.py
 => 17 passed
 
 python -m pytest
-=> 38 passed
+=> 39 passed
 
 npm.cmd run build
 => passed
