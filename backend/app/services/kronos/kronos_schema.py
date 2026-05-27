@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 KronosDirection = Literal["bullish", "bearish", "neutral", "unavailable"]
+KronosHorizonKey = Literal["next_session", "three_trading_days", "one_week", "one_month", "one_quarter"]
 
 
 class KronosBar(BaseModel):
@@ -42,6 +43,8 @@ class KronosForecastResult(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     error: str | None = None
     raw_output: dict[str, Any] = Field(default_factory=dict)
+    standardized_horizons: dict[KronosHorizonKey, dict[str, Any]] = Field(default_factory=dict)
+    horizon_summary: dict[str, Any] = Field(default_factory=dict)
 
 
 class KronosSignal(BaseModel):

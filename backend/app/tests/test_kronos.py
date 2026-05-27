@@ -65,6 +65,9 @@ def test_build_result_includes_raw_prediction(sample_bars):
     forecast = build_result_from_prediction("NVDA", "1d", "mock", bars, prediction)
     assert forecast.raw_output["columns"] == list(prediction.columns)
     assert forecast.raw_output["rows"][0]["timestamp"] == "2026-01-01"
+    assert set(forecast.standardized_horizons) == {"next_session", "three_trading_days", "one_week", "one_month", "one_quarter"}
+    assert forecast.standardized_horizons["next_session"]["trade_interpretation"]
+    assert forecast.horizon_summary["one_week_signal"]
 
 
 def test_scanner_survives_kronos_failure(monkeypatch, sample_bars):
@@ -165,7 +168,15 @@ def test_feedback_evaluation_logic(db_session, monkeypatch):
         kronos_confidence=72,
         kronos_expected_range_low=99,
         kronos_expected_range_high=110,
-        kronos_raw_output_json={"forecast_horizon": 5},
+        kronos_raw_output_json={
+            "standardized_horizons": {
+                "next_session": {"direction": "bullish", "confidence": 60, "expected_range_values": {"low": 99, "high": 105}, "bars": 1},
+                "three_trading_days": {"direction": "bullish", "confidence": 65, "expected_range_values": {"low": 99, "high": 106}, "bars": 3},
+                "one_week": {"direction": "bullish", "confidence": 72, "expected_range_values": {"low": 99, "high": 110}, "bars": 5},
+                "one_month": {"direction": "bullish", "confidence": 63, "expected_range_values": {"low": 98, "high": 115}, "bars": 22},
+                "one_quarter": {"direction": "bullish", "confidence": 58, "expected_range_values": {"low": 95, "high": 125}, "bars": 65},
+            }
+        },
         created_at=datetime.utcnow() - timedelta(days=10),
     )
     db_session.add(result)
@@ -175,7 +186,8 @@ def test_feedback_evaluation_logic(db_session, monkeypatch):
     monkeypatch.setattr(evaluator, "fetch_daily_bars", lambda symbol, lookback_days=40: pd.DataFrame())
     monkeypatch.setattr(evaluator, "upsert_price_bars", lambda db, ticker, bars: 0)
 
-    assert evaluator.ensure_eval_rows(db_session) == 1
+    assert evaluator.ensure_eval_rows(db_session) == 5
     evaluated = evaluator.evaluate_pending(db_session)
-    assert len(evaluated) == 1
-    assert db_session.query(KronosPredictionEvaluation).one().direction_correct is True
+    assert len(evaluated) == 3
+    assert {row.horizon_key for row in db_session.query(KronosPredictionEvaluation).all()} == {"next_session", "three_trading_days", "one_week", "one_month", "one_quarter"}
+    assert db_session.query(KronosPredictionEvaluation).filter(KronosPredictionEvaluation.horizon_key == "one_week").one().direction_correct is True

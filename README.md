@@ -234,7 +234,7 @@ KRONOS_MODEL_NAME=NeoQuasar/Kronos-mini
 KRONOS_TOKENIZER_NAME=NeoQuasar/Kronos-Tokenizer-2k
 KRONOS_DEVICE=auto
 KRONOS_LOOKBACK_BARS=120
-KRONOS_FORECAST_BARS=5
+KRONOS_FORECAST_BARS=65
 KRONOS_MAX_SYMBOLS_PER_RUN=10
 KRONOS_TIMEOUT_SECONDS=60
 KRONOS_BULLISH_THRESHOLD_PCT=1.5
@@ -587,7 +587,7 @@ Run a test forecast through the protected internal API:
 curl -X POST http://localhost:8000/api/kronos/forecast \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
-  -d "{\"symbol\":\"NVDA\",\"fetch_from_polygon\":true,\"forecast_bars\":5}"
+  -d "{\"symbol\":\"NVDA\",\"fetch_from_polygon\":true}"
 ```
 
 Health check:
@@ -607,7 +607,7 @@ Example scan result fields:
   "kronos_expected_range_low": 101.25,
   "kronos_expected_range_high": 108.4,
   "kronos_volatility_estimate": 4.8,
-  "kronos_summary": "Kronos NeoQuasar/Kronos-mini projects a bullish 5-bar path.",
+  "kronos_summary": "Kronos NeoQuasar/Kronos-mini projects a bullish 1 Week window.",
   "kronos_error": null
 }
 ```

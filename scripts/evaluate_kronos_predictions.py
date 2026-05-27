@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 import sys
 
@@ -10,40 +10,56 @@ sys.path.insert(0, str(BACKEND))
 
 from app.database import SessionLocal
 from app.models import KronosPredictionEvaluation, PriceBar, ScanResult, Ticker
+from app.services.kronos.kronos_adapter import STANDARD_HORIZONS
 from app.services.market_data import fetch_daily_bars, upsert_price_bars
 
 
 def ensure_eval_rows(db) -> int:
-    existing_ids = {
-        row.scan_result_id
-        for row in db.query(KronosPredictionEvaluation.scan_result_id).filter(KronosPredictionEvaluation.scan_result_id.isnot(None)).all()
+    existing = {
+        (row.scan_result_id, row.horizon_key)
+        for row in db.query(KronosPredictionEvaluation.scan_result_id, KronosPredictionEvaluation.horizon_key).filter(KronosPredictionEvaluation.scan_result_id.isnot(None)).all()
     }
     created = 0
     rows = (
         db.query(ScanResult)
-        .filter(ScanResult.kronos_enabled.is_(True), ScanResult.kronos_bias.isnot(None), ScanResult.kronos_bias != "unavailable")
+        .filter(ScanResult.kronos_enabled.is_(True), ScanResult.kronos_raw_output_json.isnot(None))
         .all()
     )
     for result in rows:
-        if result.id in existing_ids:
-            continue
         raw = result.kronos_raw_output_json or {}
-        horizon = int(raw.get("forecast_horizon") or 5)
-        db.add(
-            KronosPredictionEvaluation(
-                scan_result_id=result.id,
-                predicted_direction=result.kronos_bias or "unavailable",
-                predicted_range_low=result.kronos_expected_range_low,
-                predicted_range_high=result.kronos_expected_range_high,
-                confidence_score=float(result.kronos_confidence or 0),
-                model_name=result.kronos_model_name or "unknown",
-                symbol=result.symbol,
-                timeframe="1d",
-                forecast_horizon=horizon,
-                prediction_created_at=result.created_at,
+        horizons = raw.get("standardized_horizons") or {}
+        if not horizons and result.kronos_bias and result.kronos_bias != "unavailable":
+            horizons = {
+                "one_week": {
+                    "direction": result.kronos_bias,
+                    "confidence": float(result.kronos_confidence or 0),
+                    "expected_range_values": {"low": result.kronos_expected_range_low, "high": result.kronos_expected_range_high},
+                    "bars": int(raw.get("forecast_horizon") or 5),
+                }
+            }
+        for horizon_key, meta in STANDARD_HORIZONS.items():
+            if (result.id, horizon_key) in existing:
+                continue
+            horizon = horizons.get(horizon_key) or {}
+            if (horizon.get("direction") or horizon.get("bias")) in {None, "unavailable"}:
+                continue
+            expected_range = horizon.get("expected_range_values") or {}
+            db.add(
+                KronosPredictionEvaluation(
+                    scan_result_id=result.id,
+                    horizon_key=horizon_key,
+                    predicted_direction=horizon.get("direction") or result.kronos_bias or "unavailable",
+                    predicted_range_low=expected_range.get("low"),
+                    predicted_range_high=expected_range.get("high"),
+                    confidence_score=float(horizon.get("confidence") or 0),
+                    model_name=result.kronos_model_name or raw.get("model_name") or "unknown",
+                    symbol=result.symbol,
+                    timeframe="1d",
+                    forecast_horizon=int(horizon.get("bars") or meta["bars"]),
+                    prediction_created_at=result.created_at,
+                )
             )
-        )
-        created += 1
+            created += 1
     if created:
         db.commit()
     return created
@@ -53,9 +69,6 @@ def evaluate_pending(db) -> list[KronosPredictionEvaluation]:
     pending = db.query(KronosPredictionEvaluation).filter(KronosPredictionEvaluation.evaluation_completed_at.is_(None)).all()
     evaluated = []
     for row in pending:
-        ready_at = row.prediction_created_at + timedelta(days=max(row.forecast_horizon, 1))
-        if ready_at.date() > datetime.utcnow().date():
-            continue
         ticker = db.query(Ticker).filter(Ticker.symbol == row.symbol).one_or_none()
         if ticker:
             try:
@@ -71,10 +84,10 @@ def evaluate_pending(db) -> list[KronosPredictionEvaluation]:
             .limit(row.forecast_horizon + 1)
             .all()
         )
-        if len(prices) < 2:
+        if len(prices) <= row.forecast_horizon:
             continue
         start_close = prices[0].close
-        actual_close = prices[-1].close
+        actual_close = prices[row.forecast_horizon].close
         actual_direction = "bullish" if actual_close > start_close else "bearish" if actual_close < start_close else "neutral"
         row.actual_close_after_horizon = actual_close
         row.actual_direction = actual_direction
@@ -97,12 +110,12 @@ def print_summary(rows: list[KronosPredictionEvaluation]) -> None:
         return
     grouped = defaultdict(list)
     for row in rows:
-        grouped[(row.symbol, row.model_name)].append(row)
-    for (symbol, model), values in sorted(grouped.items()):
+        grouped[(row.symbol, row.model_name, row.horizon_key)].append(row)
+    for (symbol, model, horizon_key), values in sorted(grouped.items()):
         direction_hits = sum(1 for value in values if value.direction_correct)
         range_hits = sum(1 for value in values if value.range_hit)
         print(
-            f"{symbol} | {model}: {direction_hits}/{len(values)} direction correct "
+            f"{symbol} | {model} | {horizon_key}: {direction_hits}/{len(values)} direction correct "
             f"({direction_hits / len(values):.0%}), {range_hits}/{len(values)} range hits"
         )
 

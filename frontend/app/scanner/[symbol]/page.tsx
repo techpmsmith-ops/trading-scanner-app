@@ -66,14 +66,7 @@ export default async function TickerDetail({ params }: { params: Promise<{ symbo
         </Panel>
       </section>
       <Panel title="Kronos Forecast">
-        <div className="grid gap-3 md:grid-cols-3">
-          <Fact label="Bias" value={result.kronos_bias ? titleCase(result.kronos_bias) : result.kronos_enabled ? "Unavailable" : "Disabled"} />
-          <Fact label="Confidence" value={result.kronos_confidence === null || result.kronos_confidence === undefined ? "-" : `${number(result.kronos_confidence, 0)}/100`} />
-          <Fact label="Model" value={result.kronos_model_name || "-"} />
-          <Fact label="Expected low" value={currency(result.kronos_expected_range_low)} />
-          <Fact label="Expected high" value={currency(result.kronos_expected_range_high)} />
-          <Fact label="Horizon" value={result.kronos_raw_output_json?.forecast_horizon ? `${result.kronos_raw_output_json.forecast_horizon} bars` : "-"} />
-        </div>
+        <KronosHorizons kronos={result.kronos_raw_output_json} fallbackBias={result.kronos_bias ? titleCase(result.kronos_bias) : result.kronos_enabled ? "Unavailable" : "Disabled"} />
         {result.kronos_summary ? <p className="mt-3 text-sm text-muted">{result.kronos_summary}</p> : null}
         {result.kronos_error ? <p className="mt-3 text-sm text-[#ffd88a]">{result.kronos_error}</p> : null}
         {result.kronos_raw_output_json ? (
@@ -102,6 +95,38 @@ function Fact({ label, value }: { label: string; value: string }) {
 }
 
 function titleCase(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function KronosHorizons({ kronos, fallbackBias }: { kronos: Record<string, any> | null; fallbackBias: string }) {
+  const horizons = kronos?.standardized_horizons;
+  const summary = kronos?.horizon_summary;
+  if (!horizons) {
+    return <div className="grid gap-3 md:grid-cols-3"><Fact label="Bias" value={fallbackBias} /><Fact label="Horizon" value={kronos?.forecast_horizon ? `${kronos.forecast_horizon} bars` : "-"} /><Fact label="Model" value={kronos?.model_name || "-"} /></div>;
+  }
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+        {(["next_session", "three_trading_days", "one_week", "one_month", "one_quarter"] as const).map((key) => (
+          <div key={key} className="rounded-md border border-border bg-panelSoft p-3">
+            <div className="text-xs uppercase text-muted">{horizons[key]?.label || key.replaceAll("_", " ")}</div>
+            <div className="mt-2 text-sm font-semibold">{titleCase(horizons[key]?.bias || "unavailable")}</div>
+            <div className="mt-1 text-xs text-muted">Confidence: {horizons[key]?.confidence ?? 0}/100</div>
+            <div className="mt-1 text-xs text-muted">Range: {horizons[key]?.expected_range || "-"}</div>
+            <div className="mt-1 text-xs text-muted">Move: {horizons[key]?.expected_move_pct || "-"}</div>
+            <p className="mt-2 text-xs text-muted">{horizons[key]?.trade_interpretation}</p>
+          </div>
+        ))}
+      </div>
+      {summary ? (
+        <div className="grid gap-2 text-sm md:grid-cols-2">
+          <Fact label="Best trading horizon" value={summary.best_trading_horizon || "-"} />
+          <Fact label="Highest confidence" value={summary.highest_confidence_horizon || "-"} />
+          <Fact label="Timeframe conflict" value={summary.timeframe_conflict || "-"} />
+          <Fact label="Suggested action" value={summary.suggested_action || "-"} />
+        </div>
+      ) : null}
+    </div>
+  );
 }
 

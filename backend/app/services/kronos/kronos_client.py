@@ -6,8 +6,8 @@ from threading import Lock
 
 import pandas as pd
 
-from app.config import KRONOS_DEVICE, KRONOS_FORECAST_BARS, KRONOS_LOOKBACK_BARS, KRONOS_MODEL_NAME, KRONOS_TOKENIZER_NAME
-from app.services.kronos.kronos_adapter import build_result_from_prediction, unavailable_result, validate_ohlcv
+from app.config import KRONOS_DEVICE, KRONOS_LOOKBACK_BARS, KRONOS_MODEL_NAME, KRONOS_TOKENIZER_NAME
+from app.services.kronos.kronos_adapter import MAX_STANDARD_HORIZON_BARS, build_result_from_prediction, unavailable_result, validate_ohlcv
 from app.services.kronos.kronos_schema import KronosBar, KronosForecastResult
 
 
@@ -75,7 +75,7 @@ class KronosClient:
                 raise
 
     def predict(self, symbol: str, timeframe: str, bars: list[KronosBar], forecast_bars: int | None = None) -> KronosForecastResult:
-        forecast_bars = forecast_bars or KRONOS_FORECAST_BARS
+        forecast_bars = forecast_bars or MAX_STANDARD_HORIZON_BARS
         ok, warnings = validate_ohlcv(bars, self.lookback_bars)
         if not ok:
             return unavailable_result(symbol, timeframe, self.model_name, warnings[0], warnings)

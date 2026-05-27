@@ -10,6 +10,7 @@ Current production posture:
 - Kronos only runs for `FOCUS_GROUP_SYMBOLS`.
 - Kronos is capped at `KRONOS_MAX_SYMBOLS_PER_RUN=10`, matching the current Focus Group size.
 - Kronos score remains bounded by `KRONOS_WEIGHT=0.20`.
+- Kronos forecast output uses standardized trading windows: next session, 3 trading days, 1 week, 1 month, and 1 quarter.
 - Render env vars were added by the user.
 - Render migration `20260526_0010_kronos_integration.py` has been applied successfully.
 - Render backend rebuilt successfully with PyTorch/Kronos runtime dependencies installed.

@@ -44,9 +44,10 @@ def map_forecast_to_signal(forecast: KronosForecastResult, latest_close: float) 
         risk_flag = "high_forecast_volatility"
     end_close = forecast.predicted_close_path[-1] if forecast.predicted_close_path else latest_close
     move_pct = ((end_close - latest_close) / latest_close) * 100 if latest_close else 0
+    one_week_signal = (forecast.horizon_summary or {}).get("one_week_signal") or forecast.predicted_direction
     summary = (
-        f"Kronos {forecast.model_name} projects a {forecast.predicted_direction} "
-        f"{forecast.forecast_horizon}-bar path ({move_pct:.2f}% from latest close)."
+        f"Kronos {forecast.model_name} projects a {one_week_signal} 1 Week window "
+        f"({move_pct:.2f}% from latest close)."
     )
     return KronosSignal(
         kronos_bias=forecast.predicted_direction,

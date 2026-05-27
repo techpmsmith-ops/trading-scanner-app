@@ -286,6 +286,7 @@ class KronosPredictionEvaluation(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     scan_result_id: Mapped[int | None] = mapped_column(ForeignKey("scan_results.id"), nullable=True, index=True)
+    horizon_key: Mapped[str] = mapped_column(String(40), default="one_week", index=True)
     predicted_direction: Mapped[str] = mapped_column(String(20))
     predicted_range_low: Mapped[float | None] = mapped_column(Float, nullable=True)
     predicted_range_high: Mapped[float | None] = mapped_column(Float, nullable=True)

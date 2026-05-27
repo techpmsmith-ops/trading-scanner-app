@@ -98,16 +98,11 @@ export default async function FocusSymbolPage({ params }: { params: Promise<{ sy
         </Panel>
         <Panel title="Kronos Forecast">
           {kronos ? (
-            <>
-              <Fact label="Bias" value={titleCase(kronos.kronos_bias || kronos.predicted_direction || kronos.forecast?.predicted_direction || "unavailable")} />
-              <Fact label="Confidence" value={kronosConfidence(kronos)} />
-              <Fact label="Model" value={kronos.kronos_model_name || kronos.model_name || kronos.forecast?.model_name || "-"} />
-              <Fact label="Expected low" value={currency(kronos.kronos_expected_range?.low ?? kronos.kronos_expected_range_low ?? kronos.predicted_high_low_range?.low ?? kronos.forecast?.predicted_high_low_range?.low)} />
-              <Fact label="Expected high" value={currency(kronos.kronos_expected_range?.high ?? kronos.kronos_expected_range_high ?? kronos.predicted_high_low_range?.high ?? kronos.forecast?.predicted_high_low_range?.high)} />
-              <Fact label="Horizon" value={kronos.forecast?.forecast_horizon || kronos.forecast_horizon ? `${kronos.forecast?.forecast_horizon || kronos.forecast_horizon} bars` : "-"} />
+            <div className="space-y-3">
+              <KronosHorizons kronos={kronos.forecast || kronos} fallbackBias={titleCase(kronos.kronos_bias || kronos.predicted_direction || kronos.forecast?.predicted_direction || "unavailable")} />
               {kronos.kronos_summary ? <p className="mt-3 text-sm text-muted">{kronos.kronos_summary}</p> : null}
               {kronos.kronos_error || kronos.forecast?.error || kronos.error ? <p className="mt-3 text-sm text-[#ffd88a]">{kronos.kronos_error || kronos.forecast?.error || kronos.error}</p> : null}
-            </>
+            </div>
           ) : <p className="text-sm text-muted">Kronos has not run for this Focus Group analysis yet. Run the scanner to refresh this signal.</p>}
         </Panel>
         <Panel title="Weekly Prediction">
@@ -180,7 +175,29 @@ function titleCase(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function kronosConfidence(kronos: Record<string, any>) {
-  const confidence = kronos.kronos_confidence ?? kronos.confidence_score ?? kronos.forecast?.confidence_score;
-  return confidence === null || confidence === undefined ? "-" : `${number(confidence, 0)}/100`;
+function KronosHorizons({ kronos, fallbackBias }: { kronos: Record<string, any> | null; fallbackBias: string }) {
+  const horizons = kronos?.standardized_horizons;
+  const summary = kronos?.horizon_summary;
+  if (!horizons) {
+    const confidence = kronos?.kronos_confidence ?? kronos?.confidence_score;
+    return <><Fact label="Bias" value={fallbackBias} /><Fact label="Confidence" value={confidence === null || confidence === undefined ? "-" : `${number(confidence, 0)}/100`} /><Fact label="Horizon" value={kronos?.forecast_horizon ? `${kronos.forecast_horizon} bars` : "-"} /></>;
+  }
+  return (
+    <>
+      {(["next_session", "three_trading_days", "one_week", "one_month", "one_quarter"] as const).map((key) => (
+        <details key={key} className="border-t border-border py-2 text-sm" open={key === "one_week"}>
+          <summary className="cursor-pointer text-muted">{horizons[key]?.label || key.replaceAll("_", " ")}: <span className="text-ink">{titleCase(horizons[key]?.bias || "unavailable")}</span></summary>
+          <div className="mt-2 space-y-1 text-xs text-muted">
+            <div>Confidence: {horizons[key]?.confidence ?? 0}/100</div>
+            <div>Expected range: {horizons[key]?.expected_range || "-"}</div>
+            <div>Expected move: {horizons[key]?.expected_move_pct || "-"}</div>
+            <div>Reason: {horizons[key]?.reason || "-"}</div>
+            <div>Risk: {horizons[key]?.risk || "-"}</div>
+            <div>Interpretation: {horizons[key]?.trade_interpretation || "-"}</div>
+          </div>
+        </details>
+      ))}
+      {summary ? <p className="text-sm text-muted">Best trading horizon: {summary.best_trading_horizon}. Suggested action: {summary.suggested_action}</p> : null}
+    </>
+  );
 }

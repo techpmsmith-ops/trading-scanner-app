@@ -2,8 +2,8 @@ from time import perf_counter
 
 import pandas as pd
 
-from app.config import KRONOS_ENABLED, KRONOS_FORECAST_BARS, KRONOS_MODEL_NAME
-from app.services.kronos.kronos_adapter import dataframe_to_kronos_bars, unavailable_result
+from app.config import KRONOS_ENABLED, KRONOS_MODEL_NAME
+from app.services.kronos.kronos_adapter import MAX_STANDARD_HORIZON_BARS, dataframe_to_kronos_bars, unavailable_result
 from app.services.kronos.kronos_client import get_kronos_client
 from app.services.kronos.kronos_schema import KronosBar, KronosSignal
 from app.services.kronos.kronos_signal_mapper import map_forecast_to_signal
@@ -22,7 +22,7 @@ def forecast_signal(symbol: str, timeframe: str, bars: pd.DataFrame | list[Krono
 
     started = perf_counter()
     try:
-        forecast = get_kronos_client().predict(symbol, timeframe, input_bars, forecast_bars or KRONOS_FORECAST_BARS)
+        forecast = get_kronos_client().predict(symbol, timeframe, input_bars, forecast_bars or MAX_STANDARD_HORIZON_BARS)
         duration = round(perf_counter() - started, 3)
         log_event(
             "kronos_forecast_completed",
