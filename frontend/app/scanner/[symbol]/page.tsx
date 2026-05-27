@@ -65,6 +65,26 @@ export default async function TickerDetail({ params }: { params: Promise<{ symbo
           <Fact label="200 SMA" value={number(result.indicators.sma_200)} />
         </Panel>
       </section>
+      <Panel title="Kronos Forecast">
+        <div className="grid gap-3 md:grid-cols-3">
+          <Fact label="Bias" value={result.kronos_bias ? titleCase(result.kronos_bias) : result.kronos_enabled ? "Unavailable" : "Disabled"} />
+          <Fact label="Confidence" value={result.kronos_confidence === null || result.kronos_confidence === undefined ? "-" : `${number(result.kronos_confidence, 0)}/100`} />
+          <Fact label="Model" value={result.kronos_model_name || "-"} />
+          <Fact label="Expected low" value={currency(result.kronos_expected_range_low)} />
+          <Fact label="Expected high" value={currency(result.kronos_expected_range_high)} />
+          <Fact label="Horizon" value={result.kronos_raw_output_json?.forecast_horizon ? `${result.kronos_raw_output_json.forecast_horizon} bars` : "-"} />
+        </div>
+        {result.kronos_summary ? <p className="mt-3 text-sm text-muted">{result.kronos_summary}</p> : null}
+        {result.kronos_error ? <p className="mt-3 text-sm text-[#ffd88a]">{result.kronos_error}</p> : null}
+        {result.kronos_raw_output_json ? (
+          <details className="mt-3 text-sm">
+            <summary className="cursor-pointer text-muted">Raw Kronos details</summary>
+            <pre className="mt-2 max-h-80 overflow-auto rounded-md border border-border bg-background p-3 text-xs">
+              {JSON.stringify(result.kronos_raw_output_json, null, 2)}
+            </pre>
+          </details>
+        ) : null}
+      </Panel>
       <section className="grid gap-4 md:grid-cols-2">
         <Panel title="Setup Types"><div className="flex flex-wrap gap-2">{result.setup_types.map((item) => <StatusPill key={item} value={item} />)}</div></Panel>
         <Panel title="Risk Flags"><div className="flex flex-wrap gap-2">{result.risk_flags.length ? result.risk_flags.map((item) => <StatusPill key={item} value={item} />) : <span className="text-muted">None</span>}</div></Panel>
@@ -79,5 +99,9 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function Fact({ label, value }: { label: string; value: string }) {
   return <div className="flex justify-between border-t border-border py-2 text-sm"><span className="text-muted">{label}</span><span>{value}</span></div>;
+}
+
+function titleCase(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 

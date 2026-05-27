@@ -1,12 +1,14 @@
 from datetime import date, datetime, timedelta
 
+import pandas as pd
 from sqlalchemy.orm import Session
 
-from app.config import FOCUS_GROUP_SYMBOLS, SETUP_DISCLAIMER
+from app.config import FOCUS_GROUP_SYMBOLS, KRONOS_ENABLED, SETUP_DISCLAIMER
 from app.models import DailyRecommendation, FocusGroupAnalysis, FocusStockProfile, PriceBar, ScanResult, ScanRun, ScoringWeight, Ticker, WeeklyEvaluationReport, WeeklyPrediction
 from app.services.alerts import send_alerts
 from app.services.market_data import fetch_daily_bars, upsert_price_bars
 from app.services.news_sentiment import score_symbol_news
+from app.services.kronos.service import forecast_signal
 from app.services.scoring import DEFAULT_COMPONENT_WEIGHTS
 
 
@@ -131,6 +133,7 @@ def generate_focus_group_analysis(db: Session, force: bool = False) -> list[Focu
         metrics = _focus_price_metrics(bars)
         sentiment = score_symbol_news(symbol)
         relevance = _focus_relevance(symbol)
+        kronos = _focus_kronos_signal(symbol, bars)
         bias = _focus_bias(result, metrics, sentiment)
         confidence = _focus_confidence(result, metrics, sentiment)
         support_resistance = _support_resistance(bars)
@@ -166,7 +169,8 @@ def generate_focus_group_analysis(db: Session, force: bool = False) -> list[Focu
             relevance=relevance,
             news_sentiment_score=sentiment["score"],
             news_sentiment_label=sentiment["label"],
-            summary=_focus_summary(symbol, bias, confidence, setup, catalyst, risk_level),
+            kronos=kronos,
+            summary=_focus_summary(symbol, bias, confidence, setup, catalyst, risk_level, kronos),
         )
         db.add(row)
         rows.append(row)
@@ -677,12 +681,34 @@ def _focus_indicators(result: ScanResult | None, metrics: dict) -> dict:
     return indicators
 
 
-def _focus_summary(symbol: str, bias: str, confidence: float, setup: str, catalyst: str, risk_level: str) -> str:
-    return (
+def _focus_summary(symbol: str, bias: str, confidence: float, setup: str, catalyst: str, risk_level: str, kronos: dict | None = None) -> str:
+    summary = (
         f"{symbol} focus view is {bias} with {confidence:.0%} confidence. "
         f"Technical setup: {setup}. Key catalyst: {catalyst} Risk level: {risk_level}. "
-        "This is focus-group research, not a trade recommendation."
     )
+    if kronos and kronos.get("kronos_bias") not in {None, "unavailable"}:
+        summary += f"Kronos bias is {kronos.get('kronos_bias')} at {kronos.get('kronos_confidence')} confidence. "
+    return summary + "This is focus-group research, not a trade recommendation."
+
+
+def _focus_kronos_signal(symbol: str, bars: list[PriceBar]) -> dict | None:
+    if not KRONOS_ENABLED:
+        return {"enabled": False, "kronos_bias": "unavailable", "kronos_summary": "Kronos is disabled."}
+    data = pd.DataFrame(
+        [
+            {
+                "date": bar.date,
+                "open": bar.open,
+                "high": bar.high,
+                "low": bar.low,
+                "close": bar.close,
+                "volume": bar.volume,
+            }
+            for bar in bars
+        ]
+    )
+    signal = forecast_signal(symbol, "1d", data)
+    return signal.model_dump(mode="json")
 
 
 def _morning_alert_message(focus_rows: list[FocusGroupAnalysis], top_five: list[DailyRecommendation]) -> str:

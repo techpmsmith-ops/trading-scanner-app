@@ -6,6 +6,7 @@ DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./trading_scanner.db")
 AUTO_CREATE_TABLES = os.getenv("AUTO_CREATE_TABLES", "true").lower() == "true"
 MARKET_DATA_PROVIDER = os.getenv("MARKET_DATA_PROVIDER", "yfinance")
+POLYGON_API_KEY = os.getenv("POLYGON_API_KEY", "")
 SCAN_DEFAULT_LOOKBACK_DAYS = int(os.getenv("SCAN_DEFAULT_LOOKBACK_DAYS", "300"))
 MIN_AVG_VOLUME = int(os.getenv("MIN_AVG_VOLUME", "500000"))
 MAX_ATR_PERCENT = float(os.getenv("MAX_ATR_PERCENT", "8"))
@@ -21,6 +22,18 @@ FOCUS_GROUP_SYMBOLS = [
     for item in os.getenv("FOCUS_GROUP_SYMBOLS", ",".join(PHASE2_PREDICTION_SYMBOLS)).split(",")
     if item.strip()
 ]
+KRONOS_ENABLED = os.getenv("KRONOS_ENABLED", "false").lower() == "true"
+KRONOS_MODEL_NAME = os.getenv("KRONOS_MODEL_NAME", "NeoQuasar/Kronos-mini")
+KRONOS_TOKENIZER_NAME = os.getenv("KRONOS_TOKENIZER_NAME", "NeoQuasar/Kronos-Tokenizer-2k")
+KRONOS_DEVICE = os.getenv("KRONOS_DEVICE", "auto")
+KRONOS_LOOKBACK_BARS = int(os.getenv("KRONOS_LOOKBACK_BARS", "120"))
+KRONOS_FORECAST_BARS = int(os.getenv("KRONOS_FORECAST_BARS", "5"))
+KRONOS_MAX_SYMBOLS_PER_RUN = int(os.getenv("KRONOS_MAX_SYMBOLS_PER_RUN", "10"))
+KRONOS_TIMEOUT_SECONDS = int(os.getenv("KRONOS_TIMEOUT_SECONDS", "60"))
+KRONOS_BULLISH_THRESHOLD_PCT = float(os.getenv("KRONOS_BULLISH_THRESHOLD_PCT", "1.5"))
+KRONOS_BEARISH_THRESHOLD_PCT = float(os.getenv("KRONOS_BEARISH_THRESHOLD_PCT", "-1.5"))
+KRONOS_HIGH_VOLATILITY_THRESHOLD_PCT = float(os.getenv("KRONOS_HIGH_VOLATILITY_THRESHOLD_PCT", "5.0"))
+KRONOS_WEIGHT = float(os.getenv("KRONOS_WEIGHT", "0.20"))
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")

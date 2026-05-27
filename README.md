@@ -15,6 +15,7 @@ This is a decision-support tool. It does not place trades.
 - Provides a dashboard, scanner table, ticker detail page, journal, and performance page
 - Provides a backtesting lab for comparing transparent strategy profiles against historical bars
 - Handles per-ticker scanner failures without crashing the whole run
+- Optionally adds Kronos AI forecasts as a bounded scoring signal for Focus Group stocks
 
 ## What It Does Not Do
 
@@ -23,6 +24,7 @@ This is a decision-support tool. It does not place trades.
 - Options, crypto, futures, or forex strategies
 - Social sentiment analysis
 - AI-generated trade calls
+- Kronos-only buy/sell decisions
 - Backtests that predict future results
 - Real-time or high-frequency scanning
 
@@ -219,6 +221,7 @@ DEBUG=false
 DATABASE_URL=sqlite:///./trading_scanner.db
 AUTO_CREATE_TABLES=true
 MARKET_DATA_PROVIDER=yfinance
+POLYGON_API_KEY=
 MARKET_DATA_FALLBACK_PROVIDER=stooq
 SCAN_DEFAULT_LOOKBACK_DAYS=300
 MIN_AVG_VOLUME=500000
@@ -226,6 +229,18 @@ MAX_ATR_PERCENT=8
 YFINANCE_CACHE_DIR=./.yf_cache
 PHASE2_PREDICTION_SYMBOLS=INTC,NVDA,AMD,IONQ,NVTS,RVI,SMCI,RGTI,RKLB,MU
 FOCUS_GROUP_SYMBOLS=INTC,NVDA,AMD,IONQ,NVTS,RVI,SMCI,RGTI,RKLB,MU
+KRONOS_ENABLED=false
+KRONOS_MODEL_NAME=NeoQuasar/Kronos-mini
+KRONOS_TOKENIZER_NAME=NeoQuasar/Kronos-Tokenizer-2k
+KRONOS_DEVICE=auto
+KRONOS_LOOKBACK_BARS=120
+KRONOS_FORECAST_BARS=5
+KRONOS_MAX_SYMBOLS_PER_RUN=10
+KRONOS_TIMEOUT_SECONDS=60
+KRONOS_BULLISH_THRESHOLD_PCT=1.5
+KRONOS_BEARISH_THRESHOLD_PCT=-1.5
+KRONOS_HIGH_VOLATILITY_THRESHOLD_PCT=5.0
+KRONOS_WEIGHT=0.20
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 TWILIO_ACCOUNT_SID=
@@ -528,6 +543,85 @@ Phase 2 adds richer decision-support features while keeping the app private and 
 - Feedback loop that evaluates completed weekly predictions against actual weekly price movement and nudges scanner component weights within a bounded `0.8x` to `1.2x` range.
 - End-of-week evaluation reports showing prediction accuracy, win/loss ratio, false positives, indicator effectiveness, news-sentiment alignment, and SPY/QQQ market conditions.
 - Optional Telegram and SMS alerts for top-five and weekly prediction summaries.
+
+## Optional Kronos Forecasting
+
+Kronos is an open-source foundation model for financial K-line/OHLCV sequences. In this app it is a modular forecasting layer, not a replacement scanner and not a final trade decision engine. When enabled, Kronos runs first against the Focus Group symbols and contributes a capped signal to the scanner score.
+
+Kronos is checked out under `external/Kronos`. The lightweight default is:
+
+```text
+KRONOS_MODEL_NAME=NeoQuasar/Kronos-mini
+KRONOS_TOKENIZER_NAME=NeoQuasar/Kronos-Tokenizer-2k
+```
+
+Install and verify locally:
+
+```bash
+python scripts/setup_kronos.py
+```
+
+If packages are already installed and you only want to verify model loading:
+
+```bash
+python scripts/setup_kronos.py --skip-install
+```
+
+Turn Kronos on:
+
+```text
+KRONOS_ENABLED=true
+KRONOS_DEVICE=auto
+```
+
+Turn it off:
+
+```text
+KRONOS_ENABLED=false
+```
+
+Run a test forecast through the protected internal API:
+
+```bash
+curl -X POST http://localhost:8000/api/kronos/forecast \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d "{\"symbol\":\"NVDA\",\"fetch_from_polygon\":true,\"forecast_bars\":5}"
+```
+
+Health check:
+
+```bash
+curl http://localhost:8000/api/kronos/health -H "Authorization: Bearer <token>"
+```
+
+Example scan result fields:
+
+```json
+{
+  "kronos_enabled": true,
+  "kronos_model_name": "NeoQuasar/Kronos-mini",
+  "kronos_bias": "bullish",
+  "kronos_confidence": 72,
+  "kronos_expected_range_low": 101.25,
+  "kronos_expected_range_high": 108.4,
+  "kronos_volatility_estimate": 4.8,
+  "kronos_summary": "Kronos NeoQuasar/Kronos-mini projects a bullish 5-bar path.",
+  "kronos_error": null
+}
+```
+
+Kronos scoring is intentionally capped. If Kronos is disabled or unavailable, the existing technical, volume, risk, setup-quality, news, sentiment, confidence, and trade-plan logic continues to run without it.
+
+Hardware expectations: `Kronos-mini` is the practical local-development starting point. CPU can work for smoke tests but may be slow; CUDA is preferred for repeated inference. Upgrade to `NeoQuasar/Kronos-base` only after validating latency and memory.
+
+Evaluate completed Kronos predictions:
+
+```bash
+python scripts/evaluate_kronos_predictions.py
+```
+
+Limitations: Kronos is research forecasting, not guaranteed financial advice. Forecast quality depends on clean OHLCV data, model fit for the symbol/timeframe, market regime, and local hardware. Keep position sizing and final trade decisions outside Kronos.
 
 These outputs are still scanner-generated signals for review, not trade recommendations.
 

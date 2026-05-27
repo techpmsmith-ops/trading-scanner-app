@@ -83,6 +83,7 @@ class ScanResult(Base):
     score_volume: Mapped[int] = mapped_column(Integer)
     score_risk: Mapped[int] = mapped_column(Integer)
     score_setup_quality: Mapped[int] = mapped_column(Integer)
+    score_kronos: Mapped[int] = mapped_column(Integer, default=0)
     setup_types: Mapped[list] = mapped_column(JSON, default=list)
     risk_flags: Mapped[list] = mapped_column(JSON, default=list)
     indicators: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -92,6 +93,16 @@ class ScanResult(Base):
     target_2: Mapped[float | None] = mapped_column(Float, nullable=True)
     risk_reward: Mapped[float | None] = mapped_column(Float, nullable=True)
     explanation: Mapped[str] = mapped_column(Text)
+    kronos_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    kronos_model_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    kronos_bias: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    kronos_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    kronos_expected_range_low: Mapped[float | None] = mapped_column(Float, nullable=True)
+    kronos_expected_range_high: Mapped[float | None] = mapped_column(Float, nullable=True)
+    kronos_volatility_estimate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    kronos_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    kronos_raw_output_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    kronos_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     scan_run = relationship("ScanRun", back_populates="results")
@@ -206,6 +217,7 @@ class FocusGroupAnalysis(Base):
     relevance: Mapped[dict] = mapped_column(JSON, default=dict)
     news_sentiment_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     news_sentiment_label: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    kronos: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     summary: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -267,6 +279,30 @@ class WeeklyEvaluationReport(Base):
     weight_changes: Mapped[dict] = mapped_column(JSON, default=dict)
     confidence_notes: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class KronosPredictionEvaluation(Base):
+    __tablename__ = "kronos_prediction_evaluations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    scan_result_id: Mapped[int | None] = mapped_column(ForeignKey("scan_results.id"), nullable=True, index=True)
+    predicted_direction: Mapped[str] = mapped_column(String(20))
+    predicted_range_low: Mapped[float | None] = mapped_column(Float, nullable=True)
+    predicted_range_high: Mapped[float | None] = mapped_column(Float, nullable=True)
+    actual_close_after_horizon: Mapped[float | None] = mapped_column(Float, nullable=True)
+    actual_direction: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    direction_correct: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    range_hit: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    confidence_score: Mapped[float] = mapped_column(Float)
+    model_name: Mapped[str] = mapped_column(String(120))
+    symbol: Mapped[str] = mapped_column(String(16), index=True)
+    timeframe: Mapped[str] = mapped_column(String(20), default="1d")
+    forecast_horizon: Mapped[int] = mapped_column(Integer, default=5)
+    prediction_created_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    evaluation_completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    scan_result = relationship("ScanResult")
 
 
 class AlertSubscription(Base, TimestampMixin):

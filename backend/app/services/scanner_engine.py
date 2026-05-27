@@ -4,12 +4,13 @@ from time import perf_counter
 
 from sqlalchemy.orm import Session
 
-from app.config import DEFAULT_TICKER_METADATA, SCAN_DEFAULT_LOOKBACK_DAYS
+from app.config import DEFAULT_TICKER_METADATA, FOCUS_GROUP_SYMBOLS, KRONOS_ENABLED, KRONOS_MAX_SYMBOLS_PER_RUN, SCAN_DEFAULT_LOOKBACK_DAYS
 from app.models import ScanResult, ScanRun, Ticker
 from app.services.explanations import build_explanation
 from app.services.indicators import latest_indicator_snapshot
 from app.services.market_data import bars_for_ticker, fetch_daily_bars, upsert_price_bars
 from app.services.logging import log_event, log_warning
+from app.services.kronos.service import forecast_signal, signal_to_scan_fields
 from app.services.phase2 import latest_weights
 from app.services.research_portfolio import ensure_research_tickers, sync_share_positions_from_scan
 from app.services.risk_reward import estimate_risk_reward
@@ -59,6 +60,7 @@ def run_scanner(db: Session, lookback_days: int = SCAN_DEFAULT_LOOKBACK_DAYS) ->
         failures: list[str] = []
         results_count = 0
         component_weights = latest_weights(db)
+        kronos_symbols_used = 0
         for ticker in tickers:
             try:
                 downloaded = fetch_daily_bars(ticker.symbol, lookback_days=lookback_days)
@@ -71,7 +73,19 @@ def run_scanner(db: Session, lookback_days: int = SCAN_DEFAULT_LOOKBACK_DAYS) ->
                 close_price = indicators["close"]
                 sync_share_positions_from_scan(db, ticker.symbol, close_price)
                 setups, risk_flags = classify_setups(indicators)
-                scores = score_result(indicators, setups, risk_flags, component_weights=component_weights)
+                kronos_signal = None
+                kronos_fields = {"kronos_enabled": KRONOS_ENABLED}
+                if KRONOS_ENABLED and ticker.symbol in FOCUS_GROUP_SYMBOLS and kronos_symbols_used < KRONOS_MAX_SYMBOLS_PER_RUN:
+                    kronos_symbols_used += 1
+                    kronos_signal = forecast_signal(ticker.symbol, "1d", bars)
+                    kronos_fields = signal_to_scan_fields(kronos_signal)
+                scores = score_result(
+                    indicators,
+                    setups,
+                    risk_flags,
+                    component_weights=component_weights,
+                    kronos_signal=kronos_signal.model_dump() if kronos_signal else None,
+                )
                 rr = estimate_risk_reward(indicators, setups)
                 explanation = build_explanation(ticker.symbol, scores, indicators, setups, risk_flags)
                 db.add(
@@ -86,6 +100,7 @@ def run_scanner(db: Session, lookback_days: int = SCAN_DEFAULT_LOOKBACK_DAYS) ->
                         explanation=explanation,
                         **scores,
                         **rr,
+                        **kronos_fields,
                     )
                 )
                 results_count += 1

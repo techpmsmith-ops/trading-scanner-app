@@ -1,4 +1,4 @@
-from app.config import MAX_ATR_PERCENT, MIN_AVG_VOLUME
+from app.config import KRONOS_WEIGHT, MAX_ATR_PERCENT, MIN_AVG_VOLUME
 
 DEFAULT_COMPONENT_WEIGHTS = {
     "trend": 1.0,
@@ -65,7 +65,13 @@ def classify_setups(indicators: dict) -> tuple[list[str], list[str]]:
     return list(dict.fromkeys(setups)), list(dict.fromkeys(flags))
 
 
-def score_result(indicators: dict, setups: list[str], risk_flags: list[str], component_weights: dict | None = None) -> dict:
+def score_result(
+    indicators: dict,
+    setups: list[str],
+    risk_flags: list[str],
+    component_weights: dict | None = None,
+    kronos_signal: dict | None = None,
+) -> dict:
     weights = {**DEFAULT_COMPONENT_WEIGHTS, **(component_weights or {})}
     close = indicators["close"]
     ema_20 = indicators.get("ema_20")
@@ -115,12 +121,34 @@ def score_result(indicators: dict, setups: list[str], risk_flags: list[str], com
         + risk * float(weights.get("risk", 1.0))
         + quality * float(weights.get("setup_quality", 1.0))
     )
-    total = max(0, min(100, round(weighted_total - max(0, len(risk_flags) - 1) * 3)))
+    base_total = max(0, min(100, round(weighted_total - max(0, len(risk_flags) - 1) * 3)))
+    kronos_score = _score_kronos_signal(kronos_signal)
+    if kronos_score is None:
+        total = base_total
+        kronos_score = 0
+    else:
+        weight = min(0.5, max(0.0, KRONOS_WEIGHT))
+        total = round((base_total * (1 - weight)) + (kronos_score * weight))
     return {
         "score_trend": trend,
         "score_momentum": momentum,
         "score_volume": volume,
         "score_risk": risk,
         "score_setup_quality": quality,
+        "score_kronos": int(kronos_score),
         "score_total": total,
     }
+
+
+def _score_kronos_signal(kronos_signal: dict | None) -> int | None:
+    if not kronos_signal or kronos_signal.get("kronos_bias") == "unavailable":
+        return None
+    confidence = float(kronos_signal.get("kronos_confidence") or 0)
+    bias = kronos_signal.get("kronos_bias")
+    if bias == "bullish":
+        return int(min(100, max(50, confidence)))
+    if bias == "neutral":
+        return int(min(75, max(35, 50 + confidence * 0.1)))
+    if bias == "bearish":
+        return int(max(0, 50 - confidence * 0.5))
+    return None
