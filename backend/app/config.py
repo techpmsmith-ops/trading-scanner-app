@@ -27,13 +27,13 @@ FOCUS_GROUP_SYMBOLS = [
     for item in os.getenv("FOCUS_GROUP_SYMBOLS", ",".join(PHASE2_PREDICTION_SYMBOLS)).split(",")
     if item.strip()
 ]
-KRONOS_ENABLED = os.getenv("KRONOS_ENABLED", "false").lower() == "true"
+KRONOS_ENABLED = os.getenv("KRONOS_ENABLED", "true").lower() == "true"
 KRONOS_MODEL_NAME = os.getenv("KRONOS_MODEL_NAME", "NeoQuasar/Kronos-mini")
 KRONOS_TOKENIZER_NAME = os.getenv("KRONOS_TOKENIZER_NAME", "NeoQuasar/Kronos-Tokenizer-2k")
 KRONOS_DEVICE = os.getenv("KRONOS_DEVICE", "auto")
 KRONOS_LOOKBACK_BARS = int(os.getenv("KRONOS_LOOKBACK_BARS", "120"))
 KRONOS_FORECAST_BARS = int(os.getenv("KRONOS_FORECAST_BARS", "5"))
-KRONOS_MAX_SYMBOLS_PER_RUN = int(os.getenv("KRONOS_MAX_SYMBOLS_PER_RUN", "10"))
+KRONOS_MAX_SYMBOLS_PER_RUN = int(os.getenv("KRONOS_MAX_SYMBOLS_PER_RUN", "5"))
 KRONOS_TIMEOUT_SECONDS = int(os.getenv("KRONOS_TIMEOUT_SECONDS", "60"))
 KRONOS_BULLISH_THRESHOLD_PCT = float(os.getenv("KRONOS_BULLISH_THRESHOLD_PCT", "1.5"))
 KRONOS_BEARISH_THRESHOLD_PCT = float(os.getenv("KRONOS_BEARISH_THRESHOLD_PCT", "-1.5"))

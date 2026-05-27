@@ -15,7 +15,7 @@ This is a decision-support tool. It does not place trades.
 - Provides a dashboard, scanner table, ticker detail page, journal, and performance page
 - Provides a backtesting lab for comparing transparent strategy profiles against historical bars
 - Handles per-ticker scanner failures without crashing the whole run
-- Optionally adds Kronos AI forecasts as a bounded scoring signal for Focus Group stocks
+- Adds Kronos AI forecasts as a bounded scoring signal for Focus Group stocks
 
 ## What It Does Not Do
 
@@ -229,13 +229,13 @@ MAX_ATR_PERCENT=8
 YFINANCE_CACHE_DIR=./.yf_cache
 PHASE2_PREDICTION_SYMBOLS=INTC,NVDA,AMD,IONQ,NVTS,RVI,SMCI,RGTI,RKLB,MU
 FOCUS_GROUP_SYMBOLS=INTC,NVDA,AMD,IONQ,NVTS,RVI,SMCI,RGTI,RKLB,MU
-KRONOS_ENABLED=false
+KRONOS_ENABLED=true
 KRONOS_MODEL_NAME=NeoQuasar/Kronos-mini
 KRONOS_TOKENIZER_NAME=NeoQuasar/Kronos-Tokenizer-2k
 KRONOS_DEVICE=auto
 KRONOS_LOOKBACK_BARS=120
 KRONOS_FORECAST_BARS=5
-KRONOS_MAX_SYMBOLS_PER_RUN=10
+KRONOS_MAX_SYMBOLS_PER_RUN=5
 KRONOS_TIMEOUT_SECONDS=60
 KRONOS_BULLISH_THRESHOLD_PCT=1.5
 KRONOS_BEARISH_THRESHOLD_PCT=-1.5
@@ -544,9 +544,9 @@ Phase 2 adds richer decision-support features while keeping the app private and 
 - End-of-week evaluation reports showing prediction accuracy, win/loss ratio, false positives, indicator effectiveness, news-sentiment alignment, and SPY/QQQ market conditions.
 - Optional Telegram and SMS alerts for top-five and weekly prediction summaries.
 
-## Optional Kronos Forecasting
+## Kronos Forecasting
 
-Kronos is an open-source foundation model for financial K-line/OHLCV sequences. In this app it is a modular forecasting layer, not a replacement scanner and not a final trade decision engine. When enabled, Kronos runs first against the Focus Group symbols and contributes a capped signal to the scanner score.
+Kronos is an open-source foundation model for financial K-line/OHLCV sequences. In this app it is a modular forecasting layer, not a replacement scanner and not a final trade decision engine. Kronos runs against the Focus Group symbols, capped by `KRONOS_MAX_SYMBOLS_PER_RUN`, and contributes a bounded signal to the scanner score.
 
 Kronos is checked out under `external/Kronos`. The lightweight default is:
 
@@ -567,11 +567,12 @@ If packages are already installed and you only want to verify model loading:
 python scripts/setup_kronos.py --skip-install
 ```
 
-Turn Kronos on:
+Run Kronos for the Focus Group:
 
 ```text
 KRONOS_ENABLED=true
 KRONOS_DEVICE=auto
+KRONOS_MAX_SYMBOLS_PER_RUN=5
 ```
 
 Turn it off:
