@@ -1,5 +1,84 @@
 # Progress Handoff
 
+## Kronos Focus Integration - 2026-05-27
+
+Kronos is now integrated as a bounded Focus Group forecasting signal, not a scanner-wide trade decision engine.
+
+Current production posture:
+
+- Kronos defaults to enabled.
+- Kronos only runs for `FOCUS_GROUP_SYMBOLS`.
+- Kronos is capped at `KRONOS_MAX_SYMBOLS_PER_RUN=5`.
+- Kronos score remains bounded by `KRONOS_WEIGHT=0.20`.
+- Render env vars were added by the user.
+- Render migration `20260526_0010_kronos_integration.py` has been applied successfully.
+- Render backend rebuilt successfully with PyTorch/Kronos runtime dependencies installed.
+
+Key commits pushed:
+
+```text
+776bbd5 Harden Kronos local enablement
+bc32eba Enable Kronos for focus group by default
+9888794 Fix Kronos migration boolean backfill
+856060b Show Kronos forecast on focus pages
+c6061fb Add Kronos runtime dependencies
+5750025 Use scanner Kronos data on focus pages
+```
+
+Important fixes completed:
+
+- Fixed Postgres boolean backfill in the Kronos Alembic migration.
+- Added Kronos runtime dependencies to backend requirements:
+  - `torch`
+  - `einops`
+  - `huggingface_hub`
+  - `safetensors`
+  - `tqdm`
+- Added `.env` loading through `python-dotenv`, so local env files now work as documented.
+- Added Focus page Kronos panel.
+- Added Focus page fallback to use linked scanner-result Kronos data when the stored Focus analysis has stale/unavailable Kronos output.
+- Updated shared frontend `dateTime(...)` formatting to display `America/New_York` with timezone abbreviation. In May this displays `EDT`; in winter it will display `EST`.
+
+Validation completed locally:
+
+```text
+python -m alembic downgrade 20260525_0009
+python -m alembic upgrade head
+=> passed
+
+python -m pytest app/tests/test_phase2.py app/tests/test_kronos.py
+=> 17 passed
+
+python -m pytest
+=> 38 passed
+
+npm.cmd run build
+=> passed
+```
+
+Hosted observations:
+
+- `/scanner/MU` showed Kronos fields correctly after the backend started producing Kronos scan output.
+- `/focus/MU` initially showed stale Focus-analysis Kronos data; this was patched so Focus pages can fall back to fresh scanner Kronos data.
+- Old persisted Focus rows may still contain prior unavailable/error payloads until refreshed or until the new fallback deploy is live.
+
+Next verification steps:
+
+1. Confirm Render has deployed commit `5750025` or newer.
+2. Confirm Vercel has deployed commit `5750025` or newer.
+3. Run a fresh scan.
+4. Open `/scanner/MU` and confirm Kronos shows bias/confidence/model.
+5. Open `/focus/MU` and confirm the Kronos Forecast panel matches the scanner Kronos output.
+6. Confirm last scan timestamps display Eastern time with timezone abbreviation.
+
+If Render becomes slow or unstable due to PyTorch size/memory:
+
+```text
+KRONOS_ENABLED=false
+```
+
+No migration rollback is required for that safety switch.
+
 ## Tech Debt Backlog - 2026-05-25
 
 Backend tests are passing, but pytest currently emits non-blocking deprecation warnings that should be cleaned up during production hardening:
